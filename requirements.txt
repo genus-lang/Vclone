@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic
+python-multipart
+TTS
+edge-tts
+pydub
+librosa
+pedalboard
+numpy
+scipy
+webrtcvad

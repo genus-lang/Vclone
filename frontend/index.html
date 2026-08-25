@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VoxAI Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/studio/css/style.css" />
+  <link rel="stylesheet" href="/studio/css/voice-studio.css">
+</head>
+<body>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">V</div>
+      <span>VoxAI</span>
+    </div>
+    <nav>
+      <a class="nav-item active" id="navStudio">
+        <span>✦</span>
+        Studio
+      </a>
+      <a class="nav-item" id="navVoices">
+        <span>◉</span>
+        Voices
+      </a>
+      <a class="nav-item" id="navCreateVoice">
+        <span>🎙</span>
+        Create Voice
+      </a>
+      <a class="nav-item" id="navHistory">
+        <span>◷</span>
+        History
+      </a>
+      <a class="nav-item" id="navPronunciations">
+        <span>AA</span>
+        Pronunciations
+      </a>
+      <a class="nav-item">
+        <span>⌘</span>
+        API
+      </a>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="usage">
+        <div class="usage-header">
+          <span>Monthly usage</span>
+          <span>12%</span>
+        </div>
+        <div class="usage-bar">
+          <div class="usage-progress"></div>
+        </div>
+        <p>12,430 / 100,000 characters</p>
+      </div>
+      <div class="profile">
+        <div class="avatar">M</div>
+        <div>
+          <strong>Meghram</strong>
+          <small>Free plan</small>
+        </div>
+        <button>•••</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1>Create speech</h1>
+        <p>Turn your words into natural speech.</p>
+      </div>
+      <div class="status">
+        <span class="status-dot"></span>
+        Engine online
+      </div>
+    </header>
+
+    <div id="studioView">
+      <section class="studio-grid">
+        <!-- EDITOR -->
+        <div class="editor-panel">
+          <div class="panel-header">
+            <div>
+              <span class="label">SCRIPT</span>
+              <h2>Your text</h2>
+            </div>
+            <div class="editor-actions">
+              <button id="clearBtn">Clear</button>
+              <button id="pasteBtn">Paste</button>
+            </div>
+          </div>
+          <textarea
+            id="textInput"
+            maxlength="5000"
+            placeholder="Paste your story, narration, dialogue, or script here..."
+          >आज रात शहर बिल्कुल शांत था।
+
+लेकिन आरव जानता था कि कुछ बहुत बड़ा होने वाला है।
+
+The wind moved slowly through the trees, and somewhere in the distance, he heard a strange sound.</textarea>
+          <div class="editor-footer">
+            <span><strong id="charCount">0</strong> characters</span>
+            <span><strong id="wordCount">0</strong> words</span>
+          </div>
+        </div>
+
+        <!-- SETTINGS -->
+        <aside class="settings-panel">
+          <div class="setting-section">
+            <div class="section-title">
+              <span>VOICE</span>
+              <button>Browse</button>
+            </div>
+            <button class="voice-selector" id="voiceSelectorDropdown">
+              <div class="voice-avatar" id="selectedVoiceAvatar">M</div>
+              <div class="voice-info">
+                <strong id="selectedVoiceName">Loading...</strong>
+                <small id="selectedVoiceMeta">Please wait</small>
+              </div>
+              <span>⌄</span>
+            </button>
+            <div id="voiceDropdown" class="voice-dropdown" style="display: none;">
+              <!-- Populated by JS -->
+            </div>
+            <button class="preview-btn">
+              ▶ Preview voice
+            </button>
+          </div>
+
+          <div class="setting-section">
+            <label>Language</label>
+            <select id="language">
+              <option value="hi">Hindi</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+
+          <div class="setting-section">
+            <div class="slider-header">
+              <label>Speed</label>
+              <span id="speedValue">1.0×</span>
+            </div>
+            <input type="range" min="0.5" max="2" step="0.1" value="1" id="speed" />
+          </div>
+
+          <div class="setting-section">
+            <div class="slider-header">
+              <label>Expressiveness</label>
+              <span id="expressionValue">50%</span>
+            </div>
+            <input type="range" min="0" max="100" value="50" id="expression" />
+          </div>
+
+          <button class="generate-btn" id="generateBtn">
+            <span>✦</span> Generate speech
+          </button>
+          <p class="shortcut">Ctrl + Enter to generate</p>
+        </aside>
+      </section>
+
+      <!-- RESULT -->
+      <section class="result-section" id="resultSection" style="display: none;">
+        <div class="result-header">
+          <div>
+            <span class="label">GENERATED AUDIO</span>
+            <h2>Your result</h2>
+          </div>
+          <span class="result-time" id="resultTimeBadge">Just now</span>
+        </div>
+        <div class="audio-card">
+          <button class="play-btn" id="playBtn">▶</button>
+          <!-- WaveSurfer Container -->
+          <div class="waveform" id="waveform"></div>
+          <span class="duration" id="audioDuration">00:00</span>
+        </div>
+        
+        <div class="result-actions">
+          <a class="secondary-btn" id="downloadWav" style="text-decoration:none;">↓ Download WAV</a>
+          <a class="primary-small" id="downloadMp3" style="text-decoration:none;">↓ Download MP3</a>
+          <button class="secondary-btn" id="regenerateBtn">↻ Regenerate</button>
+          <button class="secondary-btn" id="deleteBtn" style="color:#ef4444; border-color:rgba(239, 68, 68, 0.3);">🗑 Delete</button>
+        </div>
+      </section>
+    </div> <!-- end studioView -->
+
+    <div id="voicesView" class="view" style="display: none;">
+      <section class="voices-section">
+        <div class="voices-header">
+          <div>
+            <h2>Voice Library</h2>
+            <p style="color: var(--muted); font-size: 0.9rem;">Discover the perfect voice for your content.</p>
+          </div>
+        </div>
+        
+        <div class="voices-layout">
+          <aside class="voices-sidebar">
+            <div class="filter-group">
+              <h3>Language</h3>
+              <label><input type="checkbox" value="hi" class="voice-filter-lang" checked> Hindi</label>
+              <label><input type="checkbox" value="en" class="voice-filter-lang" checked> English</label>
+            </div>
+            <div class="filter-group">
+              <h3>Gender</h3>
+              <label><input type="checkbox" value="male" class="voice-filter-gender" checked> Male</label>
+              <label><input type="checkbox" value="female" class="voice-filter-gender" checked> Female</label>
+            </div>
+            <div class="filter-group">
+              <h3>Category</h3>
+              <label><input type="checkbox" value="natural" class="voice-filter-tag"> Natural</label>
+              <label><input type="checkbox" value="storytelling" class="voice-filter-tag"> Storytelling</label>
+              <label><input type="checkbox" value="narrator" class="voice-filter-tag"> Narrator</label>
+              <label><input type="checkbox" value="deep" class="voice-filter-tag"> Deep</label>
+              <label><input type="checkbox" value="emotional" class="voice-filter-tag"> Emotional</label>
+            </div>
+          </aside>
+          
+          <div class="voices-grid" id="voicesGrid">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </section>
+      
+      <!-- Voice Details Slide-Out Panel -->
+      <div class="voice-details-backdrop" id="voiceDetailsBackdrop"></div>
+      <div class="voice-details-panel" id="voiceDetailsPanel">
+        <button class="close-panel" id="closeVoiceDetails">×</button>
+        <div class="panel-content">
+          <div class="voice-hero">
+            <div class="voice-hero-avatar" id="vdAvatar">S</div>
+            <h2 id="vdName">Voice Name</h2>
+            <p class="voice-hero-meta" id="vdMeta">Male · Hindi · Natural</p>
+            <div class="voice-hero-tags" id="vdTags">
+              <!-- Tags injected here -->
+            </div>
+          </div>
+          
+          <hr class="panel-divider">
+          
+          <div class="panel-section">
+            <h3>Preview</h3>
+            <div class="audio-card">
+              <button class="play-btn" id="vdPreviewPlayBtn">▶</button>
+              <div class="waveform" id="vdPreviewWaveform"></div>
+              <span class="duration" id="vdPreviewDuration">00:00</span>
+            </div>
+          </div>
+          
+          <div class="panel-section">
+            <h3>Try this voice</h3>
+            <textarea id="vdTestText" rows="3" placeholder="Type something..."></textarea>
+            <button class="primary-small" id="vdGenerateTestBtn" style="margin-top: 10px; width: 100%;">✦ Generate Preview</button>
+            <div id="vdTestResult" style="display: none; margin-top: 15px;">
+              <div class="audio-card">
+                <button class="play-btn" id="vdTestPlayBtn">▶</button>
+                <div class="waveform" id="vdTestWaveform"></div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="panel-section">
+            <h3>Pronunciation Lab</h3>
+            <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 10px;">Add pronunciation overrides for this engine.</p>
+            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+              <input type="text" id="vdPronounceOriginal" placeholder="Original (e.g. Fu Qian)">
+              <span style="color: var(--muted); align-self: center;">→</span>
+              <input type="text" id="vdPronounceSayAs" placeholder="Say as (e.g. फू चिएन)">
+            </div>
+            <button class="secondary-btn" id="vdAddPronunciationBtn" style="width: 100%; margin-bottom: 15px;">+ Add pronunciation</button>
+            
+            <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 10px;">Test current dictionary:</p>
+            <input type="text" id="vdPronunciationText" placeholder="Test a phrase..." style="width: 100%; margin-bottom: 10px;">
+            <button class="secondary-btn" id="vdPronounceBtn" style="width: 100%;">Generate Test</button>
+            <div id="vdPronounceResult" style="display: none; margin-top: 15px;">
+              <div class="audio-card">
+                <button class="play-btn" id="vdPronouncePlayBtn">▶</button>
+                <div class="waveform" id="vdPronounceWaveform"></div>
+              </div>
+            </div>
+          </div>
+          
+          <hr class="panel-divider">
+          <button class="generate-btn" id="vdUseVoiceBtn" style="width: 100%;">[ Use this voice ]</button>
+        </div>
+      </div>
+    </div> <!-- end voicesView -->
+
+    <!-- CREATE VOICE VIEW (WIZARD) -->
+    <div id="createVoiceView" class="view" style="display: none; max-width: 800px; margin: 0 auto; padding-top: 40px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px;">
+        <div>
+          <h1 style="margin-bottom: 8px;">Voice Clone Wizard</h1>
+          <p style="color: var(--muted);">Build a high-quality dataset for a professional voice clone.</p>
+        </div>
+        <div class="wizard-steps" style="display: flex; gap: 12px; align-items: center;">
+          <span class="step-indicator active" id="wizStep1">1. Record</span>
+          <span style="color: var(--muted);">→</span>
+          <span class="step-indicator" id="wizStep2" style="color: var(--muted);">2. Quality</span>
+          <span style="color: var(--muted);">→</span>
+          <span class="step-indicator" id="wizStep3" style="color: var(--muted);">3. Finalize</span>
+        </div>
+      </div>
+      
+      <!-- WIZARD STEP 1: RECORD/UPLOAD -->
+      <div id="wizardStep1Content" class="wizard-content active" style="display: block;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+          <!-- Recording Side -->
+          <div class="card" style="padding: 24px; text-align: center; border-radius: 8px; border: 1px solid var(--border);">
+            <h3 style="margin-bottom: 16px;">🎙 Record your voice</h3>
+            <p style="color: var(--muted); font-size: 0.9rem; margin-bottom: 24px;">Read the scripts provided or talk naturally for 1-10 minutes.</p>
+            <p id="cvTimer" style="font-size: 2rem; font-family: monospace; color: var(--accent); margin-bottom: 24px;">00:00</p>
+            <button id="cvRecordBtn" class="primary-btn" style="border-radius: 50px; padding: 16px 32px; font-size: 1.1rem;">Start recording</button>
+            <audio id="cvAudioPreview" controls style="display: none; margin-top: 20px; width: 100%;"></audio>
+          </div>
+          
+          <!-- Script Side -->
+          <div class="card" style="padding: 24px; background: #17181c; border-radius: 8px; border: 1px solid var(--border);">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 16px; align-items: center;">
+              <h3 style="font-size: 1rem;">Suggested Scripts</h3>
+              <select id="scriptCategory" style="background: #23252d; color: white; border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px;">
+                <option value="hi">Hindi Narration</option>
+                <option value="en">English Dialogue</option>
+                <option value="mix">Hinglish Emotion</option>
+              </select>
+            </div>
+            <div id="scriptContent" style="background: #23252d; padding: 16px; border-radius: 6px; font-size: 0.95rem; line-height: 1.6; height: 180px; overflow-y: auto;">
+              आज सुबह मौसम बहुत अच्छा था।<br><br>मैं बाजार से कुछ सामान खरीदने गया।<br><br>मुझे नहीं पता कि वह व्यक्ति कौन था। लेकिन उसकी आँखों में कुछ अजीब सा डर था।
+            </div>
+          </div>
+        </div>
+        
+        <div style="margin-top: 24px; text-align: right;">
+          <button class="primary-btn" id="btnNextStep1">Next: Analyze Quality →</button>
+        </div>
+      </div>
+      
+      <!-- WIZARD STEP 2: QUALITY ANALYSIS -->
+      <div id="wizardStep2Content" class="wizard-content" style="display: none;">
+        <div class="card" style="padding: 32px; text-align: center; border-radius: 8px; border: 1px solid var(--border);">
+          <div id="qualityAnalyzing" style="display: block;">
+            <div class="spinner" style="width: 40px; height: 40px; border: 3px solid rgba(139, 92, 246, 0.3); border-top-color: #8b5cf6; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
+            <h3>Analyzing Audio Quality...</h3>
+            <p style="color: var(--muted);">Checking noise floor, clipping, and silence.</p>
+          </div>
+          
+          <div id="qualityResults" style="display: none; text-align: left;">
+            <h3 style="margin-bottom: 24px; text-align: center;">Recording Analysis</h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+              <div style="background: rgba(16, 185, 129, 0.1); padding: 16px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                  <strong>Background Noise</strong>
+                  <span style="color: #10b981;">Excellent</span>
+                </div>
+                <p style="font-size: 0.8rem; color: var(--muted); margin:0;">No significant room echo or fan noise detected.</p>
+              </div>
+              
+              <div style="background: rgba(16, 185, 129, 0.1); padding: 16px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                  <strong>Volume Consistency</strong>
+                  <span style="color: #10b981;">Good</span>
+                </div>
+                <p style="font-size: 0.8rem; color: var(--muted); margin:0;">Audio levels are within the safe threshold. No clipping.</p>
+              </div>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid var(--border);">
+              <div>
+                <h4 style="margin: 0;">Overall Score</h4>
+                <p style="color: var(--muted); font-size: 0.85rem; margin: 4px 0 0 0;">This audio is safe to use for a cloned dataset.</p>
+              </div>
+              <div style="font-size: 2rem; font-weight: bold; color: #10b981;">92/100</div>
+            </div>
+          </div>
+        </div>
+        
+        <div style="margin-top: 24px; display: flex; justify-content: space-between;">
+          <button class="secondary-btn" id="btnBackStep2">← Back to record</button>
+          <button class="primary-btn" id="btnNextStep2" disabled>Next: Finalize Dataset →</button>
+        </div>
+      </div>
+      
+      <!-- WIZARD STEP 3: FINALIZE -->
+      <div id="wizardStep3Content" class="wizard-content" style="display: none;">
+        <div class="card" style="padding: 24px; border-radius: 8px; border: 1px solid var(--border);">
+          <div class="form-group">
+            <label>Voice Name</label>
+            <input type="text" id="cvName" placeholder="e.g. Meghram Meena" style="width: 100%; box-sizing: border-box;">
+          </div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="form-group">
+              <label>Profile Label</label>
+              <select id="cvProfileName" style="width: 100%; padding: 10px; background: var(--bg-dark); border: 1px solid var(--border); color: white; border-radius: 4px;">
+                <option value="Natural">Natural (Default)</option>
+                <option value="Narrator">Narrator</option>
+                <option value="Dramatic">Dramatic / Angry</option>
+              </select>
+              <p style="font-size: 0.8rem; color: var(--muted); margin-top: 4px;">Organize different speaking styles for the same voice.</p>
+            </div>
+            
+            <div class="form-group">
+              <label>Language Spoken</label>
+              <select id="cvLang" style="width: 100%; padding: 10px; background: var(--bg-dark); border: 1px solid var(--border); color: white; border-radius: 4px;">
+                <option value="hi-IN">Hindi</option>
+                <option value="en-IN">English</option>
+                <option value="hi-EN">Hinglish (Mixed)</option>
+              </select>
+            </div>
+          </div>
+          
+          <div style="background: rgba(139, 92, 246, 0.1); padding: 16px; border-radius: 6px; border: 1px solid rgba(139, 92, 246, 0.3); margin-top: 16px;">
+            <div style="display: flex; gap: 12px; align-items: flex-start;">
+              <span style="font-size: 1.2rem;">✂️</span>
+              <div>
+                <strong style="display: block; margin-bottom: 4px;">Automatic Dataset Segmentation</strong>
+                <p style="font-size: 0.85rem; color: var(--muted); margin: 0; line-height: 1.5;">When you click Create, the server will automatically run Voice Activity Detection (VAD) to split your recording into clean 5-10 second chunks, removing long silences and breaths to create a perfect reference dataset for XTTS.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div style="margin-top: 24px; display: flex; justify-content: space-between;">
+          <button class="secondary-btn" id="btnBackStep3">← Back</button>
+          <button id="cvSubmitBtn" class="primary-btn" style="padding: 12px 32px;">Create Voice Profile</button>
+        </div>
+      </div>
+    </div>
+
+
+    <div id="historyView" class="view" style="display: none;">
+      <section class="history-section">
+        <h2>Your Generation History</h2>
+        <p style="color: var(--muted); font-size: 0.9rem; margin-bottom: 24px;">Manage and download your previously generated speech files.</p>
+        
+        <div class="history-list" id="historyList">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+    </div> <!-- end historyView -->
+  </main>
+</div>
+
+<!-- VOICE STUDIO OVERLAY & PANEL -->
+<div class="voice-studio-overlay" id="voiceStudioOverlay"></div>
+<div class="voice-studio-panel" id="voiceStudioPanel">
+  <div class="vs-header">
+    <div class="vs-header-left">
+      <div class="vs-avatar" id="vsAvatar">M</div>
+      <div>
+        <h2 id="vsName">Meghram Meena</h2>
+        <p class="vs-meta" id="vsMeta">Custom Voice · Hindi</p>
+      </div>
+    </div>
+    <button class="vs-close" id="vsCloseBtn">&times;</button>
+  </div>
+  
+  <div class="vs-tabs">
+    <div class="vs-tab active" data-tab="tab-character">Character</div>
+    <div class="vs-tab" data-tab="tab-voice">Voice</div>
+    <div class="vs-tab" data-tab="tab-delivery">Delivery</div>
+    <div class="vs-tab" data-tab="tab-advanced">Advanced</div>
+    <div class="vs-tab" data-tab="tab-versions">Versions</div>
+  </div>
+  
+  <div class="vs-content">
+    
+    <!-- CHARACTER TAB -->
+    <div class="vs-tab-content active" id="tab-character">
+      <div class="vs-section">
+        <h3>VOICE CHARACTER (MACROS)</h3>
+        
+        <div class="vs-control">
+          <div class="vs-control-header">
+            <label>Age Character</label>
+            <span class="vs-val" id="val-age">50</span>
+          </div>
+          <input type="range" id="inp-age" min="0" max="100" value="50">
+          <div class="vs-control-labels"><span>Young</span><span>Mature</span></div>
+        </div>
+        
+        <div class="vs-control">
+          <div class="vs-control-header">
+            <label>Personality</label>
+            <span class="vs-val" id="val-personality">50</span>
+          </div>
+          <input type="range" id="inp-personality" min="0" max="100" value="50">
+          <div class="vs-control-labels"><span>Calm</span><span>Energetic</span></div>
+        </div>
+        
+        <div class="vs-control">
+          <div class="vs-control-header">
+            <label>Authority</label>
+            <span class="vs-val" id="val-authority">50</span>
+          </div>
+          <input type="range" id="inp-authority" min="0" max="100" value="50">
+          <div class="vs-control-labels"><span>Casual</span><span>Commanding</span></div>
+        </div>
+        
+        <p style="font-size: 12px; color: var(--muted); margin-top: 16px;">
+          Note: Character macros automatically adjust Pitch, Speed, Warmth, and Energy.
+        </p>
+      </div>
+    </div>
+    
+    <!-- VOICE TAB -->
+    <div class="vs-tab-content" id="tab-voice">
+      <div class="vs-section">
+        <h3>NATIVE & DSP SETTINGS</h3>
+        
+        <div class="vs-control" id="ctrl-speed">
+          <div class="vs-control-header">
+            <label>Speaking Speed</label>
+            <span class="vs-val" id="val-speed">1.00×</span>
+          </div>
+          <input type="range" id="inp-speed" min="0.75" max="1.5" step="0.01" value="1.0">
+        </div>
+        
+        <div class="vs-control" id="ctrl-pitch">
+          <div class="vs-control-header">
+            <label>Pitch (Semitones)</label>
+            <span class="vs-val" id="val-pitch">0.0</span>
+          </div>
+          <input type="range" id="inp-pitch" min="-6" max="6" step="0.1" value="0.0">
+          <div class="vs-control-labels"><span>Deep</span><span>High</span></div>
+        </div>
+        
+        <div class="vs-control" id="ctrl-energy">
+          <div class="vs-control-header">
+            <label>Energy</label>
+            <span class="vs-val" id="val-energy">50</span>
+          </div>
+          <input type="range" id="inp-energy" min="0" max="100" value="50">
+          <div class="vs-control-labels"><span>Soft</span><span>Powerful</span></div>
+        </div>
+        
+        <div class="vs-control" id="ctrl-warmth">
+          <div class="vs-control-header">
+            <label>Warmth</label>
+            <span class="vs-val" id="val-warmth">50</span>
+          </div>
+          <input type="range" id="inp-warmth" min="0" max="100" value="50">
+          <div class="vs-control-labels"><span>Cool</span><span>Warm</span></div>
+        </div>
+        
+        <div class="vs-control" id="ctrl-resonance">
+          <div class="vs-control-header">
+            <label>Resonance (Fullness)</label>
+            <span class="vs-val" id="val-resonance">50</span>
+          </div>
+          <input type="range" id="inp-resonance" min="0" max="100" value="50">
+          <div class="vs-control-labels"><span>Thin</span><span>Full</span></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- DELIVERY TAB -->
+    <div class="vs-tab-content" id="tab-delivery">
+      <div class="vs-section">
+        <h3>DELIVERY & EMOTION</h3>
+        
+        <div class="vs-control" id="ctrl-emotion">
+          <div class="vs-control-header"><label>Emotion</label></div>
+          <div class="vs-radio-group">
+            <input type="radio" name="emotion" id="emo-neutral" value="neutral" checked>
+            <label for="emo-neutral">Neutral</label>
+            
+            <input type="radio" name="emotion" id="emo-happy" value="happy">
+            <label for="emo-happy">Happy</label>
+            
+            <input type="radio" name="emotion" id="emo-sad" value="sad">
+            <label for="emo-sad">Sad</label>
+            
+            <input type="radio" name="emotion" id="emo-angry" value="angry">
+            <label for="emo-angry">Angry</label>
+            
+            <input type="radio" name="emotion" id="emo-dramatic" value="dramatic">
+            <label for="emo-dramatic">Dramatic</label>
+          </div>
+        </div>
+        
+        <div class="vs-control" id="ctrl-pause_length">
+          <div class="vs-control-header">
+            <label>Pause Length</label>
+            <span class="vs-val" id="val-pause_length">50</span>
+          </div>
+          <input type="range" id="inp-pause_length" min="0" max="100" value="50">
+          <div class="vs-control-labels"><span>Fast</span><span>Long</span></div>
+        </div>
+        
+        <div class="vs-control" id="ctrl-emphasis">
+          <div class="vs-control-header">
+            <label>Emphasis</label>
+            <span class="vs-val" id="val-emphasis">50</span>
+          </div>
+          <input type="range" id="inp-emphasis" min="0" max="100" value="50">
+          <div class="vs-control-labels"><span>Subtle</span><span>Strong</span></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- ADVANCED TAB -->
+    <div class="vs-tab-content" id="tab-advanced">
+      <div class="vs-section">
+        <h3>ENGINE & FINE-TUNING</h3>
+        
+        <div class="vs-control" id="ctrl-stability" style="display: none;">
+          <div class="vs-control-header">
+            <label>Stability (Native)</label>
+            <span class="vs-val" id="val-stability">50</span>
+          </div>
+          <input type="range" id="inp-stability" min="0" max="100" value="50">
+        </div>
+        
+        <div class="vs-control" id="ctrl-similarity" style="display: none;">
+          <div class="vs-control-header">
+            <label>Similarity (Native)</label>
+            <span class="vs-val" id="val-similarity">75</span>
+          </div>
+          <input type="range" id="inp-similarity" min="0" max="100" value="75">
+        </div>
+        
+        <div class="vs-control" id="ctrl-expressiveness">
+          <div class="vs-control-header">
+            <label>Expressiveness (Native)</label>
+            <span class="vs-val" id="val-expressiveness">50</span>
+          </div>
+          <input type="range" id="inp-expressiveness" min="0" max="100" value="50">
+        </div>
+        
+        <div class="vs-control" id="ctrl-clarity">
+          <div class="vs-control-header">
+            <label>Clarity (DSP)</label>
+            <span class="vs-val" id="val-clarity">80</span>
+          </div>
+          <input type="range" id="inp-clarity" min="0" max="100" value="80">
+        </div>
+        
+        <div class="vs-control" id="ctrl-breathiness">
+          <div class="vs-control-header">
+            <label>Breathiness (DSP)</label>
+            <span class="vs-val" id="val-breathiness">10</span>
+          </div>
+          <input type="range" id="inp-breathiness" min="0" max="100" value="10">
+        </div>
+      </div>
+    </div>
+    
+    <!-- VERSIONS TAB -->
+    <div class="vs-tab-content" id="tab-versions">
+      <div class="vs-section">
+        <h3>SAVED VERSIONS</h3>
+        <p style="font-size: 12px; color: var(--muted); margin-bottom: 16px;">Load or manage saved performance versions of this voice.</p>
+        
+        <div class="version-list" id="vsVersionList">
+          <!-- Populated dynamically -->
+        </div>
+        
+        <div style="margin-top: 24px; display: flex; gap: 8px;">
+          <input type="text" id="vsNewVersionName" placeholder="e.g. Villain" style="flex: 1; background: #23252d; border: 1px solid var(--border); color: white; padding: 8px; border-radius: 4px;">
+          <button class="primary-btn" id="vsSaveVersionBtn" style="padding: 8px 16px;">Save Current</button>
+        </div>
+      </div>
+    </div>
+    
+  </div> <!-- end vs-content -->
+  
+  <div class="vs-test-area">
+    <textarea id="vsTestText" placeholder="Type something to test this voice..."></textarea>
+    
+    <div class="vs-actions">
+      <button class="secondary-btn" id="vsCompareBtn" style="flex: 1; border: 1px solid #8b5cf6; color: #8b5cf6; background: transparent;">A/B Compare</button>
+      <button class="primary-btn" id="vsGenerateBtn" style="flex: 2;">Generate Preview</button>
+    </div>
+    
+    <!-- Result Area -->
+    <div id="vsAudioResult" style="display: none; background: #23252d; padding: 12px; border-radius: 8px; border: 1px solid var(--border); margin-top: 12px;">
+       <div style="display: flex; align-items: center; gap: 12px;">
+          <button id="vsPlayBtn" class="play-btn-small">▶</button>
+          <div id="vsWaveform" style="flex: 1; height: 30px;"></div>
+       </div>
+    </div>
+    
+    <!-- Compare Area -->
+    <div id="vsCompareResult" class="compare-container" style="display: none;">
+      <!-- Row A -->
+      <div class="compare-row">
+        <h4>Variant A</h4>
+        <div id="vsWaveA" class="compare-wave"></div>
+        <button id="vsPlayA" class="play-btn-small">▶</button>
+      </div>
+      <!-- Row B -->
+      <div class="compare-row">
+        <h4>Variant B</h4>
+        <div id="vsWaveB" class="compare-wave"></div>
+        <button id="vsPlayB" class="play-btn-small">▶</button>
+      </div>
+    </div>
+    
+    <div class="vs-actions" style="margin-top: 16px; justify-content: flex-end;">
+      <button class="secondary-btn" id="vsResetBtn" style="margin-right: auto;">Reset Settings</button>
+      <button class="primary-btn" id="vsSaveDefaultBtn">Save as Default</button>
+    </div>
+  </div>
+</div>
+
+<!-- PRONUNCIATIONS VIEW -->
+<div id="pronunciationsView" class="view" style="display: none;">
+  <section class="voices-section">
+    <div class="voices-header">
+      <div>
+        <h2>Pronunciation Dictionary</h2>
+        <p style="color: var(--muted); font-size: 0.9rem;">Teach the AI how to properly pronounce specific words like character names or locations.</p>
+      </div>
+    </div>
+    <div style="background: #17181c; padding: 24px; border-radius: 8px; border: 1px solid var(--border);">
+      <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+        <input type="text" id="pronOriginal" placeholder="Original word (e.g. Fu Qian)" class="vs-input">
+        <input type="text" id="pronSayAs" placeholder="Say as (e.g. फू चिएन)" class="vs-input">
+        <select id="pronLanguage" class="vs-input" style="max-width: 150px;">
+          <option value="all">All Languages</option>
+          <option value="hi">Hindi</option>
+          <option value="en">English</option>
+        </select>
+        <button id="addPronBtn" class="primary-btn">Add Word</button>
+      </div>
+      
+      <div style="background: #23252d; border-radius: 6px; border: 1px solid var(--border); overflow: hidden;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+          <thead style="background: #2a2d36; border-bottom: 1px solid var(--border);">
+            <tr>
+              <th style="padding: 12px 16px; color: var(--muted); font-weight: 500; font-size: 13px;">Original Word</th>
+              <th style="padding: 12px 16px; color: var(--muted); font-weight: 500; font-size: 13px;">Pronunciation</th>
+              <th style="padding: 12px 16px; color: var(--muted); font-weight: 500; font-size: 13px;">Language</th>
+              <th style="padding: 12px 16px; color: var(--muted); font-weight: 500; font-size: 13px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="pronTableBody">
+            <!-- Populated by JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- WaveSurfer.js CDN -->
+<script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
+<script src="/studio/js/api.js"></script>
+<script src="/studio/js/app.js"></script>
+<script src="/studio/js/studio.js"></script>
+
+</body>
+</html>

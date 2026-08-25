@@ -1,0 +1,278 @@
+{
+  "shubh": {
+    "id": "shubh",
+    "name": "Shubh",
+    "languages": [
+      "hi-IN",
+      "en-IN"
+    ],
+    "gender": "male",
+    "engine": "sarvam",
+    "engine_voice": "arvind",
+    "edge_voice": "hi-IN-MadhurNeural",
+    "styles": [
+      "natural",
+      "clear",
+      "narrator"
+    ],
+    "tags": [
+      "Hindi",
+      "Male",
+      "Natural",
+      "Clear"
+    ],
+    "default_settings": {
+      "pace": 1.0,
+      "emotion": "natural"
+    },
+    "fallback_engine": "edge",
+    "preview": "/studio/audio/previews/shubh.mp3"
+  },
+  "ashutosh": {
+    "id": "ashutosh",
+    "name": "Ashutosh",
+    "languages": [
+      "hi-IN"
+    ],
+    "gender": "male",
+    "engine": "sarvam",
+    "engine_voice": "amartya",
+    "edge_voice": "hi-IN-MadhurNeural",
+    "styles": [
+      "deep",
+      "storytelling",
+      "authoritative"
+    ],
+    "tags": [
+      "Hindi",
+      "Male",
+      "Deep",
+      "Authoritative"
+    ],
+    "default_settings": {
+      "pace": 0.9,
+      "emotion": "natural"
+    },
+    "fallback_engine": "edge",
+    "preview": "/studio/audio/previews/ashutosh.mp3"
+  },
+  "priya": {
+    "id": "priya",
+    "name": "Priya",
+    "languages": [
+      "hi-IN",
+      "en-IN"
+    ],
+    "gender": "female",
+    "engine": "sarvam",
+    "engine_voice": "priya",
+    "edge_voice": "hi-IN-SwaraNeural",
+    "styles": [
+      "warm",
+      "storytelling",
+      "conversational"
+    ],
+    "tags": [
+      "Hindi",
+      "Female",
+      "Warm",
+      "Conversational"
+    ],
+    "default_settings": {
+      "pace": 1.0,
+      "emotion": "natural"
+    },
+    "fallback_engine": "edge",
+    "preview": "/studio/audio/previews/priya.mp3"
+  },
+  "suhani": {
+    "id": "suhani",
+    "name": "Suhani",
+    "languages": [
+      "hi-IN",
+      "en-IN"
+    ],
+    "gender": "female",
+    "engine": "sarvam",
+    "engine_voice": "meera",
+    "edge_voice": "hi-IN-SwaraNeural",
+    "styles": [
+      "soft",
+      "youthful",
+      "emotional"
+    ],
+    "tags": [
+      "Hindi",
+      "Female",
+      "Soft",
+      "Youthful"
+    ],
+    "default_settings": {
+      "pace": 1.05,
+      "emotion": "soft"
+    },
+    "fallback_engine": "edge",
+    "preview": "/studio/audio/previews/suhani.mp3"
+  },
+  "ratan": {
+    "id": "ratan",
+    "name": "Ratan",
+    "languages": [
+      "en-IN"
+    ],
+    "gender": "male",
+    "engine": "sarvam",
+    "engine_voice": "arvind",
+    "edge_voice": "en-IN-PrabhatNeural",
+    "styles": [
+      "professional",
+      "natural"
+    ],
+    "tags": [
+      "Indian English",
+      "Male",
+      "Professional"
+    ],
+    "default_settings": {
+      "pace": 1.0,
+      "emotion": "professional"
+    },
+    "fallback_engine": "edge",
+    "preview": "/studio/audio/previews/ratan.mp3"
+  },
+  "ishita": {
+    "id": "ishita",
+    "name": "Ishita",
+    "languages": [
+      "en-IN"
+    ],
+    "gender": "female",
+    "engine": "sarvam",
+    "engine_voice": "priya",
+    "edge_voice": "en-IN-NeerjaNeural",
+    "styles": [
+      "professional",
+      "clear"
+    ],
+    "tags": [
+      "Indian English",
+      "Female",
+      "Professional",
+      "Clear"
+    ],
+    "default_settings": {
+      "pace": 1.0,
+      "emotion": "professional"
+    },
+    "fallback_engine": "edge",
+    "preview": "/studio/audio/previews/ishita.mp3"
+  },
+  "meera": {
+    "id": "meera",
+    "name": "Meera",
+    "languages": [
+      "hi-IN",
+      "en-IN"
+    ],
+    "gender": "female",
+    "engine": "elevenlabs",
+    "engine_voice": "EXAVITQu4vr4xnSDxMaL",
+    "edge_voice": "hi-IN-SwaraNeural",
+    "styles": [
+      "storytelling",
+      "warm",
+      "natural"
+    ],
+    "tags": [
+      "Hindi",
+      "English",
+      "Female",
+      "Storytelling",
+      "Premium"
+    ],
+    "default_settings": {
+      "pace": 0.95,
+      "emotion": "natural"
+    },
+    "fallback_engine": "sarvam",
+    "preview": "/studio/audio/previews/meera.mp3"
+  },
+  "aarav": {
+    "id": "aarav",
+    "name": "Aarav",
+    "languages": [
+      "hi-IN"
+    ],
+    "gender": "male",
+    "engine": "elevenlabs",
+    "engine_voice": "pNInz6obbfDQGcgMyIGD",
+    "edge_voice": "hi-IN-MadhurNeural",
+    "styles": [
+      "hero",
+      "dramatic"
+    ],
+    "tags": [
+      "Hindi",
+      "Male",
+      "Hero",
+      "Dramatic",
+      "Premium"
+    ],
+    "default_settings": {
+      "pace": 0.98,
+      "emotion": "dramatic"
+    },
+    "fallback_engine": "xtts",
+    "preview": "/studio/audio/previews/aarav.mp3"
+  },
+  "storyteller": {
+    "id": "storyteller",
+    "name": "Storyteller",
+    "languages": [
+      "en-US"
+    ],
+    "gender": "male",
+    "engine": "elevenlabs",
+    "engine_voice": "onwK4e9ZLuTAKqWW03F9",
+    "edge_voice": "en-US-GuyNeural",
+    "styles": [
+      "narrator",
+      "calm"
+    ],
+    "tags": [
+      "English",
+      "Male",
+      "Narrator"
+    ],
+    "default_settings": {
+      "pace": 1.0,
+      "emotion": "calm"
+    },
+    "fallback_engine": "edge",
+    "preview": "/studio/audio/previews/storyteller.mp3"
+  },
+  "meghram_meena": {
+    "id": "meghram_meena",
+    "name": "Meghram Meena",
+    "languages": [
+      "hi-IN"
+    ],
+    "gender": "unknown",
+    "engine": "xtts",
+    "engine_voice": "meghram_meena",
+    "edge_voice": "hi-IN-MadhurNeural",
+    "styles": [
+      "natural"
+    ],
+    "tags": [
+      "Cloned",
+      "natural"
+    ],
+    "default_settings": {
+      "pace": 1.0,
+      "emotion": "natural"
+    },
+    "fallback_engine": "edge",
+    "preview": "/studio/audio/previews/meghram_meena.mp3"
+  }
+}
