@@ -2,8 +2,6 @@ import os
 import sys
 from typing import Dict, Any
 import torch
-torch.backends.cuda.enable_mem_efficient_sdp(False)
-torch.backends.cuda.enable_flash_sdp(False)
 from .base import TTSEngine
 
 # Resolve paths

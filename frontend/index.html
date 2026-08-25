@@ -670,7 +670,8 @@ The wind moved slowly through the trees, and somewhere in the distance, he heard
   </div> <!-- end vs-content -->
   
   <div class="vs-test-area">
-    <textarea id="vsTestText" placeholder="Type something to test this voice..."></textarea>
+    <textarea id="vsTestText" maxlength="500" placeholder="Type something to test this voice... (Max 500 characters)"></textarea>
+    <div id="vsCharCount" style="text-align: right; font-size: 12px; color: var(--text-muted); margin-top: -8px; margin-bottom: 12px;">0 / 500 characters</div>
     
     <div class="vs-actions">
       <button class="secondary-btn" id="vsCompareBtn" style="flex: 1; border: 1px solid #8b5cf6; color: #8b5cf6; background: transparent;">A/B Compare</button>

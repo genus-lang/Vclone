@@ -6,52 +6,41 @@ import numpy as np
 class VoiceActivityDetector:
     def segment_audio(self, file_path: str, output_dir: str, top_db: int = 30) -> list[str]:
         """
-        Segments a long audio file into smaller chunks based on silence detection.
-        Returns a list of paths to the generated segments.
+        Extracts a single, high-quality 10-12 second contiguous chunk of audio
+        starting from the first non-silent speech. This preserves natural pacing
+        and breathing, which is critical for Coqui XTTS zero-shot cloning.
         """
         try:
             y, sr = librosa.load(file_path, sr=None)
             
-            # Split non-silent intervals
-            # librosa.effects.split returns intervals of non-silent regions
+            # Find intervals of non-silent regions
             intervals = librosa.effects.split(y, top_db=top_db)
             
+            if len(intervals) == 0:
+                # If everything is silence (or too quiet), just return the original
+                return [file_path]
+                
             os.makedirs(output_dir, exist_ok=True)
-            segment_paths = []
             
-            # Group intervals into roughly 5-10 second chunks if possible
-            current_chunk = []
-            current_length = 0
-            chunk_index = 0
+            # Start from the beginning of the first actual speech
+            first_speech_start = intervals[0][0]
             
-            # Helper to save a chunk
-            def save_chunk(chunk_samples, index):
-                if len(chunk_samples) > 0:
-                    out_path = os.path.join(output_dir, f"segment_{index:03d}.wav")
-                    sf.write(out_path, chunk_samples, sr)
-                    segment_paths.append(out_path)
+            # Target exactly 12 seconds of contiguous audio (XTTS sweet spot is 6-12s)
+            target_length = sr * 12
             
-            target_length = sr * 7 # Target 7 seconds per chunk
+            # Slice out the contiguous block
+            end_idx = min(first_speech_start + target_length, len(y))
+            best_segment = y[first_speech_start:end_idx]
             
-            for interval in intervals:
-                start, end = interval
-                segment = y[start:end]
-                
-                if current_length + len(segment) > target_length and current_length > 0:
-                    # Save current chunk
-                    save_chunk(np.concatenate(current_chunk), chunk_index)
-                    chunk_index += 1
-                    current_chunk = [segment]
-                    current_length = len(segment)
-                else:
-                    current_chunk.append(segment)
-                    current_length += len(segment)
-                    
-            # Save remaining
-            if len(current_chunk) > 0:
-                save_chunk(np.concatenate(current_chunk), chunk_index)
-                
-            return segment_paths
+            # If the segment is extremely short (e.g., < 3 seconds), just use the whole file
+            # to give the model as much data as possible
+            if len(best_segment) < sr * 3:
+                best_segment = y
+            
+            out_path = os.path.join(output_dir, "reference_optimal.wav")
+            sf.write(out_path, best_segment, sr)
+            
+            return [out_path]
             
         except Exception as e:
             print(f"VAD segmentation failed: {e}")
