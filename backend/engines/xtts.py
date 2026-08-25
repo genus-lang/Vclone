@@ -58,9 +58,33 @@ class XTTSLocalEngine(TTSEngine):
             speaker_wavs = speaker_wav_path
             
         try:
+            import time
+            import librosa
+            
+            start_time = time.time()
+            
             # For now, XTTSManager doesn't natively accept settings. 
             # We would apply speed/pitch via audio post-processing in `audio_processor.py`.
             self.tts_manager.generate(text, speaker_wavs, language, output_path)
+            
+            generation_time = time.time() - start_time
+            
+            # Calculate RTF and VRAM
+            try:
+                audio_duration = librosa.get_duration(filename=output_path)
+                rtf = generation_time / audio_duration if audio_duration > 0 else 0
+                vram_peak = torch.cuda.max_memory_allocated() / (1024**3) if torch.cuda.is_available() else 0.0
+                
+                print(f"\nVoice: {speaker}")
+                print(f"Engine: XTTS-v2")
+                print(f"Text: {len(text)} characters")
+                print(f"Generation time: {generation_time:.2f} sec")
+                print(f"Audio duration: {audio_duration:.2f} sec")
+                print(f"RTF: {rtf:.2f}")
+                print(f"VRAM peak: {vram_peak:.2f} GB\n")
+            except Exception as metric_err:
+                print(f"Failed to calculate metrics: {metric_err}")
+                
             return True
         except Exception as e:
             import traceback

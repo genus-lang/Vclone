@@ -161,6 +161,21 @@ document.querySelectorAll('.vs-control input[type="range"]').forEach(inp => {
   });
 });
 
+// Update character counter for test text
+const vsTestText = document.getElementById("vsTestText");
+const vsCharCount = document.getElementById("vsCharCount");
+if (vsTestText && vsCharCount) {
+  vsTestText.addEventListener("input", function() {
+    const len = this.value.length;
+    vsCharCount.textContent = `${len} / 500 characters`;
+    if (len >= 500) {
+      vsCharCount.style.color = "var(--error)";
+    } else {
+      vsCharCount.style.color = "var(--text-muted)";
+    }
+  });
+}
+
 // MACRO LOGIC (Voice Character)
 function applyMacros() {
   const age = Number(document.getElementById("inp-age").value); // 0 (Young) to 100 (Mature)

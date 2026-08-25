@@ -397,12 +397,15 @@ def generate_preview(voice_id: str, request: PreviewRequest, db: Session = Depen
     
     try:
         from backend.text.pipeline import text_pipeline
-        chunks = text_pipeline.process_chapter(request.text, lang)
+        
+        # Enforce 500 character limit for preview
+        preview_text = request.text[:500]
+        chunks = text_pipeline.process_chapter(preview_text, lang)
         
         if len(chunks) <= 1:
             raw_output = temp_path.replace(".mp3", "_raw.wav")
             engine_manager.generate(
-                text=chunks[0] if chunks else request.text, 
+                text=chunks[0] if chunks else preview_text, 
                 voice_id=voice_id, 
                 language=lang, 
                 output_path=raw_output,
@@ -482,7 +485,9 @@ def generate_compare(voice_id: str, request: CompareRequest, db: Session = Depen
         from backend.audio.processor import audio_processor
         from backend.audio.encoder import audio_encoder
         
-        chunks = text_pipeline.process_chapter(request.text, lang)
+        # Enforce 500 character limit for compare
+        preview_text = request.text[:500]
+        chunks = text_pipeline.process_chapter(preview_text, lang)
         
         def _generate_variant(settings, prefix):
             temp_path = os.path.join(BASE_DIR, "output", "temp", f"{prefix}_{uuid.uuid4().hex[:8]}.mp3")
@@ -490,7 +495,7 @@ def generate_compare(voice_id: str, request: CompareRequest, db: Session = Depen
             if len(chunks) <= 1:
                 raw_output = temp_path.replace(".mp3", "_raw.wav")
                 engine_manager.generate(
-                    text=chunks[0] if chunks else request.text, 
+                    text=chunks[0] if chunks else preview_text, 
                     voice_id=voice_id, 
                     language=lang, 
                     output_path=raw_output,
