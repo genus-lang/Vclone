@@ -4,7 +4,7 @@ import gc
 import time
 import hashlib
 from typing import Optional
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, Body
 from fastapi.responses import FileResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -25,6 +25,7 @@ from backend.text.pipeline import text_pipeline
 from backend.audio.processor import audio_processor
 from backend.audio.vad import vad_processor
 from backend.audio.quality_checker import quality_checker
+from backend.voice.reference_manager import reference_manager
 from backend.audio.encoder import audio_encoder
 from backend.database import get_db
 from backend.models import Voice, VoiceSettings, VoiceVersion, GeneratedAudio, PronunciationDictionary, VoiceProfile, VoiceReference
@@ -36,8 +37,10 @@ app = FastAPI(title="Web Studio TTS Platform API")
 
 # Serve the web studio at root
 os.makedirs(os.path.join(BASE_DIR, "frontend"), exist_ok=True)
+os.makedirs(os.path.join(BASE_DIR, "voices"), exist_ok=True)
 app.mount("/studio", StaticFiles(directory=os.path.join(BASE_DIR, "frontend"), html=True), name="frontend")
 app.mount("/output", StaticFiles(directory=os.path.join(BASE_DIR, "output")), name="output")
+app.mount("/voices", StaticFiles(directory=os.path.join(BASE_DIR, "voices")), name="voices")
 
 @app.get("/")
 def root_redirect():
@@ -166,14 +169,31 @@ async def clone_voice(
         db.add(existing_profile)
         db.commit()
         
-    # References
+    # References — score each segment on upload
+    from backend.voice.reference_manager import reference_manager
+    import librosa as _librosa
     for seg in segments:
+        seg_score = reference_manager.score_reference(seg)
+        try:
+            seg_duration = _librosa.get_duration(path=seg)
+        except:
+            seg_duration = seg_score.get("duration_sec", 0.0)
         ref = VoiceReference(
             id=uuid.uuid4().hex,
             profile_id=existing_profile.id,
-            file_path=seg
+            file_path=seg,
+            duration=seg_duration,
+            quality_score=seg_score.get("quality_score"),
+            snr_db=seg_score.get("snr_db"),
+            speech_density=seg_score.get("speech_density"),
+            silence_ratio=seg_score.get("silence_ratio"),
+            peak_db=seg_score.get("peak_db"),
+            dynamic_range_db=seg_score.get("dynamic_range_db"),
+            has_clipping=seg_score.get("has_clipping"),
+            is_active=True,
         )
         db.add(ref)
+        print(f"[Clone] Segment scored: quality={seg_score.get('quality_score')}/100  SNR={seg_score.get('snr_db'):.1f}dB  speech={seg_score.get('speech_density', 0)*100:.0f}%")
     db.commit()
     
     os.makedirs(os.path.join(BASE_DIR, "frontend", "audio", "previews"), exist_ok=True)
@@ -190,6 +210,39 @@ async def clone_voice(
         print(f"Failed to generate preview for cloned voice: {e}")
         
     return {"status": "success", "voice_id": voice_id, "segments_created": len(segments), "quality_score": quality["overall_score"]}
+
+@app.post("/v1/audio/analyze_quality")
+async def analyze_audio_quality(file: UploadFile = File(...)):
+    import tempfile
+    import os
+    from pydub import AudioSegment
+    
+    # Save raw upload
+    with tempfile.NamedTemporaryFile(delete=False, suffix="_upload") as raw_file:
+        content = await file.read()
+        raw_file.write(content)
+        raw_path = raw_file.name
+        
+    wav_path = raw_path + ".wav"
+    
+    try:
+        # Convert whatever format (mp3, webm, etc.) to clean WAV for Librosa
+        audio_seg = AudioSegment.from_file(raw_path)
+        audio_seg = audio_seg.set_channels(1).set_frame_rate(22050).set_sample_width(2)
+        audio_seg.export(wav_path, format="wav")
+        
+        from backend.audio.quality_checker import quality_checker
+        quality = quality_checker.analyze_quality(wav_path)
+    except Exception as e:
+        print(f"Error preparing audio for quality check: {e}")
+        quality = quality_checker.analyze_quality(raw_path) # fallback
+    finally:
+        if os.path.exists(raw_path):
+            os.unlink(raw_path)
+        if os.path.exists(wav_path):
+            os.unlink(wav_path)
+            
+    return quality
 
 @app.get("/health")
 def health_check():
@@ -218,7 +271,103 @@ def delete_voice(voice_id: str, db: Session = Depends(get_db)):
         try: os.remove(wav_path)
         except: pass
             
-    return JSONResponse({"status": "success", "message": f"Voice {voice_id} deleted."})
+    return {"status": "success"}
+
+@app.get("/v1/voices/{voice_id}/references")
+def get_voice_references(voice_id: str, db: Session = Depends(get_db)):
+    voice = db.query(Voice).filter(Voice.id == voice_id).first()
+    if not voice:
+        raise HTTPException(status_code=404, detail="Voice not found")
+        
+    refs = []
+    profiles = db.query(VoiceProfile).filter(VoiceProfile.voice_id == voice_id).all()
+    
+    for p in profiles:
+        for r in p.references:
+            refs.append({
+                "id": r.id,
+                "profile_name": p.name,
+                "file_name": os.path.basename(r.file_path),
+                "is_active": r.is_active,
+                "duration": r.duration,
+                "quality_score": r.quality_score,
+                "snr_db": r.snr_db,
+                "speech_density": r.speech_density,
+                "has_clipping": r.has_clipping,
+                "grade": reference_manager.grade_label(r.quality_score or 0),
+            })
+    return {"references": refs}
+
+@app.post("/v1/voices/{voice_id}/references/upload")
+async def upload_voice_reference(
+    voice_id: str, 
+    file: UploadFile = File(...), 
+    db: Session = Depends(get_db)
+):
+    import uuid
+    import shutil
+    import librosa
+    
+    voice = db.query(Voice).filter(Voice.id == voice_id).first()
+    if not voice:
+        raise HTTPException(status_code=404, detail="Voice not found")
+        
+    # Find or create a 'Custom' profile
+    profile = db.query(VoiceProfile).filter(VoiceProfile.voice_id == voice_id, VoiceProfile.name == "Custom").first()
+    if not profile:
+        profile = VoiceProfile(id=uuid.uuid4().hex, voice_id=voice_id, name="Custom")
+        db.add(profile)
+        db.commit()
+        
+    os.makedirs(os.path.join(BASE_DIR, "voices", f"{voice_id}_Custom_segments"), exist_ok=True)
+    
+    filename = file.filename.replace(" ", "_")
+    file_path = os.path.join(BASE_DIR, "voices", f"{voice_id}_Custom_segments", filename)
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    try:
+        duration = librosa.get_duration(path=file_path)
+    except:
+        duration = 0.0
+        
+    ref = VoiceReference(
+        id=uuid.uuid4().hex,
+        profile_id=profile.id,
+        file_path=file_path,
+        duration=duration,
+        is_active=False
+    )
+    db.add(ref)
+    db.commit()
+    
+    return {"status": "success", "reference_id": ref.id}
+
+@app.post("/v1/voices/{voice_id}/references/select")
+def select_voice_reference(
+    voice_id: str, 
+    data: dict = Body(...), 
+    db: Session = Depends(get_db)
+):
+    reference_id = data.get("reference_id")
+    
+    profiles = db.query(VoiceProfile).filter(VoiceProfile.voice_id == voice_id).all()
+    profile_ids = [p.id for p in profiles]
+    
+    # Deactivate all
+    db.query(VoiceReference).filter(VoiceReference.profile_id.in_(profile_ids)).update({"is_active": False})
+    
+    if reference_id:
+        db.query(VoiceReference).filter(VoiceReference.id == reference_id).update({"is_active": True})
+    else:
+        # Default fallback to first available
+        first_ref = db.query(VoiceReference).filter(VoiceReference.profile_id.in_(profile_ids)).first()
+        if first_ref:
+            first_ref.is_active = True
+            
+    db.commit()
+    return {"status": "success"}
 
 # ---- VOICE SETTINGS ENDPOINTS ----
 

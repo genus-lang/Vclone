@@ -156,6 +156,26 @@ The wind moved slowly through the trees, and somewhere in the distance, he heard
             <input type="range" min="0" max="100" value="50" id="expression" />
           </div>
 
+          <!-- REFERENCE SELECTOR -->
+          <div class="setting-section" id="referenceSection" style="display: none; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);">
+            <div class="slider-header">
+              <label>Reference Audio</label>
+            </div>
+            <select id="referenceSelector" style="margin-bottom: 10px;">
+              <option value="">Default (Auto-Extracted)</option>
+            </select>
+            <div id="referencePlayerContainer" style="display: none;">
+              <audio id="referencePlayer" controls style="width: 100%; height: 32px; border-radius: 4px;"></audio>
+            </div>
+            
+            <div style="margin-top: 10px; display: flex; gap: 10px;">
+                <input type="file" id="referenceUploadInput" accept="audio/*" style="display: none;">
+                <button class="secondary-btn" id="uploadReferenceBtn" style="flex: 1; padding: 6px; font-size: 12px; background: rgba(255,255,255,0.1); border: none; color: white; border-radius: 4px; cursor: pointer;">
+                  + Upload Custom Reference
+                </button>
+            </div>
+          </div>
+
           <button class="generate-btn" id="generateBtn">
             <span>✦</span> Generate speech
           </button>
@@ -310,11 +330,25 @@ The wind moved slowly through the trees, and somewhere in the distance, he heard
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
           <!-- Recording Side -->
           <div class="card" style="padding: 24px; text-align: center; border-radius: 8px; border: 1px solid var(--border);">
-            <h3 style="margin-bottom: 16px;">🎙 Record your voice</h3>
-            <p style="color: var(--muted); font-size: 0.9rem; margin-bottom: 24px;">Read the scripts provided or talk naturally for 1-10 minutes.</p>
+            <h3 style="margin-bottom: 16px;">🎙 Record or Upload</h3>
+            <p style="color: var(--muted); font-size: 0.9rem; margin-bottom: 24px;">Read the scripts provided or talk naturally for 1-10 minutes. Alternatively, upload an existing clean audio file.</p>
             <p id="cvTimer" style="font-size: 2rem; font-family: monospace; color: var(--accent); margin-bottom: 24px;">00:00</p>
-            <button id="cvRecordBtn" class="primary-btn" style="border-radius: 50px; padding: 16px 32px; font-size: 1.1rem;">Start recording</button>
+            
+            <div style="display: flex; flex-direction: column; gap: 12px; align-items: center;">
+              <button id="cvRecordBtn" class="primary-btn" style="border-radius: 50px; padding: 12px 32px; font-size: 1.1rem; width: 100%;">Start recording</button>
+              
+              <div style="display: flex; align-items: center; width: 100%;">
+                <hr style="flex: 1; border: none; border-top: 1px solid var(--border);">
+                <span style="color: var(--muted); padding: 0 10px; font-size: 0.85rem;">OR</span>
+                <hr style="flex: 1; border: none; border-top: 1px solid var(--border);">
+              </div>
+              
+              <input type="file" id="cvUploadFile" accept="audio/*" style="display: none;">
+              <button id="cvUploadBtn" class="secondary-btn" style="border-radius: 50px; padding: 12px 32px; font-size: 1.1rem; width: 100%; border: 1px solid var(--accent); color: var(--accent); background: transparent;">Upload Audio File</button>
+            </div>
+            
             <audio id="cvAudioPreview" controls style="display: none; margin-top: 20px; width: 100%;"></audio>
+            <p id="cvUploadStatus" style="color: #10b981; font-size: 0.9rem; margin-top: 12px; display: none;">File uploaded successfully!</p>
           </div>
           
           <!-- Script Side -->
@@ -351,29 +385,29 @@ The wind moved slowly through the trees, and somewhere in the distance, he heard
             <h3 style="margin-bottom: 24px; text-align: center;">Recording Analysis</h3>
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
-              <div style="background: rgba(16, 185, 129, 0.1); padding: 16px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3);">
+              <div id="qualityNoiseCard" style="background: rgba(16, 185, 129, 0.1); padding: 16px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3);">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                   <strong>Background Noise</strong>
-                  <span style="color: #10b981;">Excellent</span>
+                  <span id="qualityNoiseStatus" style="color: #10b981;">Checking...</span>
                 </div>
-                <p style="font-size: 0.8rem; color: var(--muted); margin:0;">No significant room echo or fan noise detected.</p>
+                <p id="qualityNoiseDesc" style="font-size: 0.8rem; color: var(--muted); margin:0;">Analyzing noise floor...</p>
               </div>
               
-              <div style="background: rgba(16, 185, 129, 0.1); padding: 16px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3);">
+              <div id="qualityVolCard" style="background: rgba(16, 185, 129, 0.1); padding: 16px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3);">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                   <strong>Volume Consistency</strong>
-                  <span style="color: #10b981;">Good</span>
+                  <span id="qualityVolStatus" style="color: #10b981;">Checking...</span>
                 </div>
-                <p style="font-size: 0.8rem; color: var(--muted); margin:0;">Audio levels are within the safe threshold. No clipping.</p>
+                <p id="qualityVolDesc" style="font-size: 0.8rem; color: var(--muted); margin:0;">Analyzing dynamic range and clipping...</p>
               </div>
             </div>
             
             <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid var(--border);">
               <div>
                 <h4 style="margin: 0;">Overall Score</h4>
-                <p style="color: var(--muted); font-size: 0.85rem; margin: 4px 0 0 0;">This audio is safe to use for a cloned dataset.</p>
+                <p id="qualityOverallDesc" style="color: var(--muted); font-size: 0.85rem; margin: 4px 0 0 0;">Analyzing audio...</p>
               </div>
-              <div style="font-size: 2rem; font-weight: bold; color: #10b981;">92/100</div>
+              <div id="qualityScoreVal" style="font-size: 2rem; font-weight: bold; color: #10b981;">--/100</div>
             </div>
           </div>
         </div>

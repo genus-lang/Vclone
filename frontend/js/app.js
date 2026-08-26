@@ -830,20 +830,102 @@ function goToWizardStep(step) {
   wizStep3.style.color = step === 3 ? "var(--text)" : "var(--muted)";
 }
 
-btnNextStep1.addEventListener("click", () => {
-  if (!recordedBlob) return alert("Please record some audio first.");
+btnNextStep1.addEventListener("click", async () => {
+  if (!recordedBlob) return alert("Please record or upload some audio first.");
   goToWizardStep(2);
   
-  // Simulate quality checking
   document.getElementById("qualityAnalyzing").style.display = "block";
   document.getElementById("qualityResults").style.display = "none";
   btnNextStep2.disabled = true;
   
-  setTimeout(() => {
+  try {
+    const formData = new FormData();
+    // Append the blob, naming it properly
+    formData.append("file", recordedBlob, "upload.wav");
+    
+    const response = await fetch("/v1/audio/analyze_quality", {
+      method: "POST",
+      body: formData
+    });
+    
+    if (!response.ok) throw new Error("Failed to analyze quality");
+    const data = await response.json();
+    
+    // Update Noise Section
+    const noiseCard = document.getElementById("qualityNoiseCard");
+    const noiseStatus = document.getElementById("qualityNoiseStatus");
+    const noiseDesc = document.getElementById("qualityNoiseDesc");
+    
+    if (data.noise_floor_db < -45) {
+      noiseStatus.textContent = "Excellent";
+      noiseStatus.style.color = "#10b981";
+      noiseCard.style.background = "rgba(16, 185, 129, 0.1)";
+      noiseCard.style.borderColor = "rgba(16, 185, 129, 0.3)";
+      noiseDesc.textContent = "No significant background noise detected.";
+    } else if (data.noise_floor_db < -30) {
+      noiseStatus.textContent = "Fair";
+      noiseStatus.style.color = "#f59e0b";
+      noiseCard.style.background = "rgba(245, 158, 11, 0.1)";
+      noiseCard.style.borderColor = "rgba(245, 158, 11, 0.3)";
+      noiseDesc.textContent = "Some background noise detected, but usable.";
+    } else {
+      noiseStatus.textContent = "Poor";
+      noiseStatus.style.color = "#ef4444";
+      noiseCard.style.background = "rgba(239, 68, 68, 0.1)";
+      noiseCard.style.borderColor = "rgba(239, 68, 68, 0.3)";
+      noiseDesc.textContent = "High background noise. Cloning may suffer.";
+    }
+    
+    // Update Volume Section
+    const volCard = document.getElementById("qualityVolCard");
+    const volStatus = document.getElementById("qualityVolStatus");
+    const volDesc = document.getElementById("qualityVolDesc");
+    
+    if (data.has_clipping) {
+      volStatus.textContent = "Clipping Detected";
+      volStatus.style.color = "#ef4444";
+      volCard.style.background = "rgba(239, 68, 68, 0.1)";
+      volCard.style.borderColor = "rgba(239, 68, 68, 0.3)";
+      volDesc.textContent = "Audio is too loud and distorted.";
+    } else if (data.dynamic_range_db < 20) {
+      volStatus.textContent = "Low Dynamics";
+      volStatus.style.color = "#f59e0b";
+      volCard.style.background = "rgba(245, 158, 11, 0.1)";
+      volCard.style.borderColor = "rgba(245, 158, 11, 0.3)";
+      volDesc.textContent = "Audio lacks dynamic range (sounds flat).";
+    } else {
+      volStatus.textContent = "Good";
+      volStatus.style.color = "#10b981";
+      volCard.style.background = "rgba(16, 185, 129, 0.1)";
+      volCard.style.borderColor = "rgba(16, 185, 129, 0.3)";
+      volDesc.textContent = "Audio levels are healthy with good dynamic range.";
+    }
+    
+    // Update Score
+    const scoreVal = document.getElementById("qualityScoreVal");
+    const scoreDesc = document.getElementById("qualityOverallDesc");
+    
+    scoreVal.textContent = `${data.overall_score}/100`;
+    
+    if (data.overall_score >= 80) {
+      scoreVal.style.color = "#10b981";
+      scoreDesc.textContent = "This audio is excellent for a cloned dataset.";
+    } else if (data.overall_score >= 50) {
+      scoreVal.style.color = "#f59e0b";
+      scoreDesc.textContent = "This audio is usable, but could be better.";
+    } else {
+      scoreVal.style.color = "#ef4444";
+      scoreDesc.textContent = "Not recommended. Please re-record or upload a better file.";
+    }
+    
     document.getElementById("qualityAnalyzing").style.display = "none";
     document.getElementById("qualityResults").style.display = "block";
     btnNextStep2.disabled = false;
-  }, 2000);
+    
+  } catch (e) {
+    alert("Error analyzing quality: " + e.message);
+    btnNextStep2.disabled = false; // let them proceed anyway
+  }
 });
 
 btnBackStep2.addEventListener("click", () => goToWizardStep(1));
@@ -900,6 +982,35 @@ cvRecordBtn.addEventListener("click", async () => {
   } catch (err) {
     alert("Could not access microphone: " + err.message);
   }
+});
+
+const cvUploadBtn = document.getElementById("cvUploadBtn");
+const cvUploadFile = document.getElementById("cvUploadFile");
+const cvUploadStatus = document.getElementById("cvUploadStatus");
+
+cvUploadBtn.addEventListener("click", () => {
+  cvUploadFile.click();
+});
+
+cvUploadFile.addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  // Set the recordedBlob to the uploaded file
+  recordedBlob = file;
+  
+  // Create object URL for preview
+  const audioUrl = URL.createObjectURL(recordedBlob);
+  cvAudioPreview.src = audioUrl;
+  cvAudioPreview.style.display = "block";
+  
+  // Update UI to show successful upload
+  cvUploadStatus.style.display = "block";
+  cvUploadStatus.textContent = `File selected: ${file.name}`;
+  
+  // Update record button text to indicate alternative choice
+  cvRecordBtn.textContent = "Start over with recording";
+  cvRecordBtn.classList.remove("recording-active");
 });
 
 cvSubmitBtn.addEventListener("click", async () => {

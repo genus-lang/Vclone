@@ -13,30 +13,49 @@ class VoiceActivityDetector:
         try:
             y, sr = librosa.load(file_path, sr=None)
             
-            # Find intervals of non-silent regions
-            intervals = librosa.effects.split(y, top_db=top_db)
+            target_length = sr * 12 # 12 seconds max
             
-            if len(intervals) == 0:
-                # If everything is silence (or too quiet), just return the original
-                return [file_path]
-                
+            # Find intervals of non-silent regions (stricter threshold to avoid noise)
+            intervals = librosa.effects.split(y, top_db=max(20, top_db))
+            
             os.makedirs(output_dir, exist_ok=True)
             
-            # Start from the beginning of the first actual speech
-            first_speech_start = intervals[0][0]
+            if len(intervals) == 0:
+                # If everything is silence (or too quiet), just take the first 12s
+                best_segment = y[:target_length]
+            else:
+                # Concatenate pure speech intervals to create a dense reference
+                speech_chunks = []
+                current_len = 0
+                
+                for interval in intervals:
+                    start, end = interval
+                    chunk = y[start:end]
+                    
+                    if current_len + len(chunk) > target_length:
+                        needed = target_length - current_len
+                        speech_chunks.append(chunk[:needed])
+                        break
+                    else:
+                        speech_chunks.append(chunk)
+                        current_len += len(chunk)
+                        
+                best_segment = np.concatenate(speech_chunks)
+                
+                # If we couldn't even find 3 seconds of speech, fallback to the original start
+                if len(best_segment) < sr * 3:
+                    first_start = intervals[0][0]
+                    end_idx = min(first_start + target_length, len(y))
+                    best_segment = y[first_start:end_idx]
             
-            # Target exactly 12 seconds of contiguous audio (XTTS sweet spot is 6-12s)
-            target_length = sr * 12
-            
-            # Slice out the contiguous block
-            end_idx = min(first_speech_start + target_length, len(y))
-            best_segment = y[first_speech_start:end_idx]
-            
-            # If the segment is extremely short (e.g., < 3 seconds), just use the whole file
-            # to give the model as much data as possible
-            if len(best_segment) < sr * 3:
-                best_segment = y
-            
+            # ** CRITICAL FIX: Volume Normalization **
+            # XTTS relies heavily on the volume of the reference audio. 
+            # If the reference is too quiet, XTTS tries to compensate, causing massive distortion, 
+            # metallic artifacts, and poor voice matching. We peak-normalize to 0.9.
+            max_val = np.max(np.abs(best_segment))
+            if max_val > 0.01: # Avoid dividing by zero or amplifying pure silence
+                best_segment = best_segment * (0.9 / max_val)
+                
             out_path = os.path.join(output_dir, "reference_optimal.wav")
             sf.write(out_path, best_segment, sr)
             

@@ -108,4 +108,14 @@ class VoiceReference(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
+    # Quality metrics (populated by ReferenceManager.score_reference)
+    quality_score = Column(Integer, nullable=True)       # 0-100
+    snr_db = Column(Float, nullable=True)                # Signal-to-noise ratio dB
+    speech_density = Column(Float, nullable=True)        # 0.0-1.0 (% of audio with speech)
+    silence_ratio = Column(Float, nullable=True)         # 0.0-1.0
+    peak_db = Column(Float, nullable=True)               # dBFS
+    dynamic_range_db = Column(Float, nullable=True)
+    has_clipping = Column(Boolean, nullable=True)
+    
     profile = relationship("VoiceProfile", back_populates="references")
+

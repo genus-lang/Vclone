@@ -82,6 +82,7 @@ async function openVoiceStudio(voice) {
     currentSettings = await getVoiceSettings(voice.id);
     updateStudioSliders(currentSettings);
     loadVoiceVersions();
+    loadVoiceReferences(voice.id);
   } catch (e) {
     console.error("Could not load settings", e);
   }
@@ -145,7 +146,150 @@ function getCurrentStudioSettings() {
     sentence_variation: 0.5, // Not exposed yet
     emphasis: Number(document.getElementById("inp-emphasis").value) / 100,
     emotion: document.querySelector('input[name="emotion"]:checked') ? document.querySelector('input[name="emotion"]:checked').value : "neutral",
-    preset: "custom"
+    preset: "custom",
+    reference_id: document.getElementById("referenceSelector") ? document.getElementById("referenceSelector").value : undefined
+  };
+}
+
+// Reference Logic
+async function loadVoiceReferences(voiceId) {
+  const selector = document.getElementById("referenceSelector");
+  const section = document.getElementById("referenceSection");
+  const playerCont = document.getElementById("referencePlayerContainer");
+  const player = document.getElementById("referencePlayer");
+  
+  // Only show for cloned voices
+  if (!activeStudioVoice.is_cloned) {
+    section.style.display = "none";
+    return;
+  }
+  
+  section.style.display = "block";
+  selector.innerHTML = "";
+  
+  try {
+    const res = await fetch(`${API_BASE}/v1/voices/${voiceId}/references`);
+    const data = await res.json();
+    
+    // Sort by quality_score descending (best first)
+    const refs = (data.references || []).sort((a, b) => (b.quality_score || 0) - (a.quality_score || 0));
+    
+    if (refs.length > 0) {
+      // Build quality display panel
+      let qualityPanel = document.getElementById("referenceQualityPanel");
+      if (!qualityPanel) {
+        qualityPanel = document.createElement("div");
+        qualityPanel.id = "referenceQualityPanel";
+        qualityPanel.style.cssText = "font-size:11px; color: var(--text-muted, #aaa); padding:6px 0; line-height:1.6;";
+        selector.parentNode.insertBefore(qualityPanel, playerCont);
+      }
+      
+      const updateQualityPanel = (ref) => {
+        if (!ref || ref.quality_score === null || ref.quality_score === undefined) {
+          qualityPanel.innerHTML = "";
+          return;
+        }
+        const score = ref.quality_score || 0;
+        const snr = ref.snr_db != null ? ref.snr_db.toFixed(1) : "?";
+        const density = ref.speech_density != null ? (ref.speech_density * 100).toFixed(0) + "%" : "?";
+        const clipping = ref.has_clipping ? "⚠ Yes" : "✓ None";
+        const grade = ref.grade || (score >= 85 ? "Excellent" : score >= 70 ? "Good" : score >= 50 ? "Fair" : "Poor");
+        const gradeColor = score >= 85 ? "#22c55e" : score >= 70 ? "#84cc16" : score >= 50 ? "#f59e0b" : "#ef4444";
+        const barWidth = Math.round(score);
+        qualityPanel.innerHTML = `
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <span>Quality</span>
+            <span style="color:${gradeColor}; font-weight:600;">${score}/100 — ${grade}</span>
+          </div>
+          <div style="background:rgba(255,255,255,0.1); border-radius:3px; height:4px; margin-bottom:6px;">
+            <div style="background:${gradeColor}; width:${barWidth}%; height:100%; border-radius:3px; transition:width 0.3s;"></div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; text-align:center;">
+            <div><div style="color:#fff; font-weight:600;">${snr} dB</div><div>SNR</div></div>
+            <div><div style="color:#fff; font-weight:600;">${density}</div><div>Speech</div></div>
+            <div><div style="color:${ref.has_clipping ? '#ef4444' : '#22c55e'}; font-weight:600;">${clipping}</div><div>Clipping</div></div>
+          </div>`;
+      };
+      
+      refs.forEach(ref => {
+        const opt = document.createElement("option");
+        opt.value = ref.id;
+        const dur = (ref.duration != null) ? ref.duration.toFixed(1) + 's' : '?s';
+        const score = ref.quality_score != null ? ` [${ref.quality_score}/100]` : '';
+        opt.text = `${ref.profile_name} - ${ref.file_name} (${dur})${score}`;
+        opt.dataset.url = `/voices/${activeStudioVoice.id}_${ref.profile_name}_segments/${ref.file_name}`;
+        if (ref.profile_name === "Custom") {
+           opt.dataset.url = `/voices/${activeStudioVoice.id}_Custom_segments/${ref.file_name}`;
+        }
+        opt.dataset.refId = ref.id;
+        if (ref.is_active) opt.selected = true;
+        selector.appendChild(opt);
+      });
+      
+      const getSelectedRef = () => refs.find(r => r.id === selector.value) || refs[0];
+      
+      const updatePlayer = () => {
+        const selectedOpt = selector.options[selector.selectedIndex];
+        if (selectedOpt && selectedOpt.dataset.url) {
+          player.src = selectedOpt.dataset.url;
+          playerCont.style.display = "block";
+        } else {
+          playerCont.style.display = "none";
+        }
+        updateQualityPanel(getSelectedRef());
+      };
+      
+      selector.onchange = async () => {
+        updatePlayer();
+        await fetch(`${API_BASE}/v1/voices/${voiceId}/references/select`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reference_id: selector.value })
+        });
+      };
+      updatePlayer();
+    } else {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.text = "Default (Auto-Extracted)";
+      selector.appendChild(opt);
+      playerCont.style.display = "none";
+    }
+  } catch (e) {
+    console.error("Failed to load references", e);
+  }
+}
+
+// Reference Upload Logic
+const uploadRefBtn = document.getElementById("uploadReferenceBtn");
+const refInput = document.getElementById("referenceUploadInput");
+
+if (uploadRefBtn && refInput) {
+  uploadRefBtn.onclick = () => refInput.click();
+  
+  refInput.onchange = async (e) => {
+    if (!e.target.files.length || !activeStudioVoice) return;
+    
+    const file = e.target.files[0];
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    uploadRefBtn.textContent = "Uploading...";
+    uploadRefBtn.disabled = true;
+    
+    try {
+      await fetch(`${API_BASE}/v1/voices/${activeStudioVoice.id}/references/upload`, {
+        method: "POST",
+        body: formData
+      });
+      await loadVoiceReferences(activeStudioVoice.id);
+    } catch (err) {
+      alert("Failed to upload reference.");
+    } finally {
+      uploadRefBtn.textContent = "+ Upload Custom Reference";
+      uploadRefBtn.disabled = false;
+      refInput.value = "";
+    }
   };
 }
 
