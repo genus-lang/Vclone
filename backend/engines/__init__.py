@@ -37,7 +37,7 @@ class EngineManager:
                     "gender": "unknown", # default
                     "styles": [],
                     "tags": [],
-                    "preview": f"/v1/audio/previews/{v.id}.mp3",
+                    "preview": f"/studio/audio/previews/{v.id}.mp3",
                     "engine": v.engine,
                     "is_cloned": v.is_cloned,
                     "production": True,

@@ -1,4 +1,4 @@
-﻿import os
+import os
 import glob
 import torch
 import soundfile as sf
@@ -53,17 +53,27 @@ class TTSManager:
         )
         return output_path
 
-    def compute_speaker_latents(self, reference_path: str):
+    def compute_speaker_latents(self, reference_paths):
         """
-        Compute (gpt_cond_latent, speaker_embedding) from reference audio.
+        Compute (gpt_cond_latent, speaker_embedding) from reference audio(s).
         Uses real Xtts.get_conditioning_latents() — verified v0.27.5 API.
+
+        CRITICAL PARAMETERS:
+        - gpt_cond_len=30: Maximum context length. Gives XTTS the richest
+          possible speaker representation. Was 6 before — far too short.
+        - sound_norm_refs=True: Let XTTS normalize reference audio internally.
+        - audio_path accepts a LIST — passing multiple clips gives a much
+          better averaged speaker embedding than a single clip.
         """
         model = self._get_xtts_model()
+        if isinstance(reference_paths, str):
+            reference_paths = [reference_paths]
         gpt_cond_latent, speaker_embedding = model.get_conditioning_latents(
-            audio_path=[reference_path],
+            audio_path=reference_paths,
             max_ref_length=30,
-            gpt_cond_len=6,
+            gpt_cond_len=30,
             gpt_cond_chunk_len=6,
+            sound_norm_refs=True,
         )
         return gpt_cond_latent, speaker_embedding
 
@@ -74,8 +84,8 @@ class TTSManager:
         gpt_cond_latent,
         speaker_embedding,
         output_path: str,
-        temperature: float = 0.75,
-        repetition_penalty: float = 10.0,
+        temperature: float = 0.3,
+        repetition_penalty: float = 2.0,
         top_k: int = 50,
         top_p: float = 0.85,
         speed: float = 1.0,

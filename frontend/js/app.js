@@ -492,7 +492,7 @@ function renderVoiceGrid() {
         ${voice.tags.slice(0, 3).map(t => `<span class="vc-tag">${t}</span>`).join('')}
       </div>
       <div style="display: flex; gap: 8px; margin-top: auto;">
-        <div class="vc-preview" style="flex: 1;" onclick="playCardPreview('${voice.preview}')">
+        <div class="vc-preview" style="flex: 1;" onclick="playCardPreview('${voice.preview}', event)">
           <span>▶</span> <span style="font-size: 11px;">Preview</span>
         </div>
         <div class="vc-preview" style="padding: 6px 12px; flex: 0; display: flex; align-items: center; justify-content: center; color: #ef4444; border-color: rgba(239, 68, 68, 0.2);" onclick="deleteVoiceCard('${voice.id}', event)">
@@ -529,7 +529,8 @@ window.deleteVoiceCard = async function(voiceId, event) {
 
 // Play audio directly from card
 let currentCardAudio = null;
-window.playCardPreview = function(url) {
+window.playCardPreview = function(url, event) {
+  if (event) event.stopPropagation();
   if (currentCardAudio) {
     currentCardAudio.pause();
   }

@@ -1,0 +1,12 @@
+{
+  "reference_paths": [
+    "D:\\dev\\tts\\voices\\d_Natural_segments\\reference_optimal.wav",
+    "D:\\dev\\tts\\voices\\d_Natural_segments\\reference_000.wav",
+    "D:\\dev\\tts\\voices\\d_Natural_segments\\reference_001.wav",
+    "D:\\dev\\tts\\voices\\d_Natural_segments\\reference_002.wav",
+    "D:\\dev\\tts\\voices\\d_Natural_segments\\reference_003.wav",
+    "D:\\dev\\tts\\voices\\d_Natural_segments\\reference_004.wav"
+  ],
+  "num_refs": 6,
+  "created_at": 1788638348.2787716
+}
