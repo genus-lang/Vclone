@@ -128,6 +128,14 @@ function updateStudioSliders(s) {
     const radio = document.getElementById(`emo-${s.emotion.toLowerCase()}`);
     if (radio) radio.checked = true;
   }
+  
+  if (s.reference_id) {
+    const refSelect = document.getElementById("referenceSelector");
+    if (refSelect) {
+      refSelect.value = s.reference_id;
+      refSelect.dispatchEvent(new Event('change'));
+    }
+  }
 }
 
 function getCurrentStudioSettings() {

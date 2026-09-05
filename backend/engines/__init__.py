@@ -43,6 +43,22 @@ class EngineManager:
                     "production": True,
                     "capabilities": caps
                 })
+                
+                # Append saved versions as selectable voices
+                for ver in v.versions:
+                    result.append({
+                        "id": f"{v.id}__version__{ver.id}",
+                        "name": f"{v.name} ({ver.name})",
+                        "languages": [v.language.split('-')[0]] if v.language else ["hi", "en"],
+                        "gender": "unknown",
+                        "styles": [ver.name.lower()],
+                        "tags": ["custom version"],
+                        "preview": f"/studio/audio/previews/{v.id}.mp3",
+                        "engine": v.engine,
+                        "is_cloned": v.is_cloned,
+                        "production": True,
+                        "capabilities": caps
+                    })
             return result
         finally:
             db.close()

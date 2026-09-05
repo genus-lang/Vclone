@@ -254,6 +254,15 @@ def get_voices():
 
 @app.delete("/v1/voices/{voice_id}")
 def delete_voice(voice_id: str, db: Session = Depends(get_db)):
+    if "__version__" in voice_id:
+        base_voice_id, version_id = voice_id.split("__version__")
+        version = db.query(VoiceVersion).filter(VoiceVersion.id == version_id).first()
+        if not version:
+            raise HTTPException(status_code=404, detail="Version not found")
+        db.delete(version)
+        db.commit()
+        return {"status": "success"}
+
     voice = db.query(Voice).filter(Voice.id == voice_id).first()
     if not voice:
         raise HTTPException(status_code=404, detail="Voice not found")
@@ -533,9 +542,22 @@ class PreviewRequest(BaseModel):
 
 @app.post("/v1/voices/{voice_id}/preview")
 def generate_preview(voice_id: str, request: PreviewRequest, db: Session = Depends(get_db)):
-    voice = db.query(Voice).filter(Voice.id == voice_id).first()
+    base_voice_id = voice_id
+    version_settings = None
+    if "__version__" in voice_id:
+        base_voice_id, version_id = voice_id.split("__version__")
+        import json
+        version = db.query(VoiceVersion).filter(VoiceVersion.id == version_id).first()
+        if version:
+            version_settings = json.loads(version.settings_json)
+            
+    voice = db.query(Voice).filter(Voice.id == base_voice_id).first()
     if not voice:
         raise HTTPException(status_code=404, detail="Voice not found")
+        
+    final_settings = version_settings or {}
+    if request.settings:
+        final_settings.update(request.settings)
         
     os.makedirs(os.path.join(BASE_DIR, "output", "temp"), exist_ok=True)
     temp_path = os.path.join(BASE_DIR, "output", "temp", f"preview_{uuid.uuid4().hex[:8]}.mp3")
@@ -555,23 +577,23 @@ def generate_preview(voice_id: str, request: PreviewRequest, db: Session = Depen
             raw_output = temp_path.replace(".mp3", "_raw.wav")
             engine_manager.generate(
                 text=chunks[0] if chunks else preview_text, 
-                voice_id=voice_id, 
+                voice_id=base_voice_id, 
                 language=lang, 
                 output_path=raw_output,
-                override_settings=request.settings
+                override_settings=final_settings
             )
             merged_path = raw_output
         else:
             temp_files = []
             session_id = str(uuid.uuid4())[:8]
             for i, chunk_text in enumerate(chunks):
-                chunk_path = os.path.join(BASE_DIR, "output", "temp", f"{session_id}_{i:03d}_{voice_id}_raw.wav")
+                chunk_path = os.path.join(BASE_DIR, "output", "temp", f"{session_id}_{i:03d}_{base_voice_id}_raw.wav")
                 engine_manager.generate(
                     text=chunk_text,
-                    voice_id=voice_id,
+                    voice_id=base_voice_id,
                     language=lang,
                     output_path=chunk_path,
-                    override_settings=request.settings
+                    override_settings=final_settings
                 )
                 temp_files.append(chunk_path)
                 if torch.cuda.is_available():
@@ -718,7 +740,26 @@ def generate_speech(request: SpeechRequest, db: Session = Depends(get_db)):
     cache_string = f"{text_hash}_{request.voice}_{request.model}_{settings_hash}"
     cache_key = hashlib.md5(cache_string.encode("utf-8")).hexdigest()
     
-    voice = db.query(Voice).filter(Voice.id == request.voice).first()
+    
+    base_voice_id = request.voice
+    version_settings = None
+    if "__version__" in request.voice:
+        base_voice_id, version_id = request.voice.split("__version__")
+        # Load version settings
+        import json
+        version = db.query(VoiceVersion).filter(VoiceVersion.id == version_id).first()
+        if version:
+            version_settings = json.loads(version.settings_json)
+    
+    voice = db.query(Voice).filter(Voice.id == base_voice_id).first()
+    if not voice:
+        raise HTTPException(status_code=404, detail="Voice not found")
+        
+    # Merge version settings with request settings
+    final_settings = version_settings or {}
+    if request.settings:
+        final_settings.update(request.settings)
+        
     # Pipeline always produces .mp3 at the end via AudioEncoder
     output_path = os.path.join(BASE_DIR, "output", "single", f"{cache_key}.mp3")
     audio_id = f"audio_{cache_key}"
@@ -741,10 +782,10 @@ def generate_speech(request: SpeechRequest, db: Session = Depends(get_db)):
             raw_output = output_path.replace(".mp3", "_raw.wav")
             engine_manager.generate(
                 text=chunks[0] if chunks else request.input, 
-                voice_id=request.voice, 
+                voice_id=base_voice_id, 
                 language=target_lang, 
                 output_path=raw_output,
-                override_settings=request.settings
+                override_settings=final_settings
             )
             merged_path = raw_output
         else:
@@ -752,13 +793,13 @@ def generate_speech(request: SpeechRequest, db: Session = Depends(get_db)):
             session_id = str(uuid.uuid4())[:8]
             os.makedirs(os.path.join(BASE_DIR, "output", "temp"), exist_ok=True)
             for i, chunk_text in enumerate(chunks):
-                chunk_path = os.path.join(BASE_DIR, "output", "temp", f"{session_id}_{i:03d}_{request.voice}_raw.wav")
+                chunk_path = os.path.join(BASE_DIR, "output", "temp", f"{session_id}_{i:03d}_{base_voice_id}_raw.wav")
                 engine_manager.generate(
                     text=chunk_text,
-                    voice_id=request.voice,
+                    voice_id=base_voice_id,
                     language=target_lang,
                     output_path=chunk_path,
-                    override_settings=request.settings
+                    override_settings=final_settings
                 )
                 temp_files.append(chunk_path)
                 if torch.cuda.is_available():
