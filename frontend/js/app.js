@@ -581,9 +581,103 @@ function openVoiceDetails(voice) {
   document.getElementById("vdPronounceResult").style.display = "none";
   document.getElementById("vdPronunciationText").value = "";
   
+  // Setup Training UI
+  document.getElementById("vdStartTrainingBtn").style.display = "block";
+  document.getElementById("vdTrainingStatusDisplay").style.display = "none";
+  document.getElementById("vdTrainedBadge").style.display = "none";
+  
+  if (window.trainingPollInterval) {
+    clearInterval(window.trainingPollInterval);
+    window.trainingPollInterval = null;
+  }
+  
+  pollTrainingStatus(voice.id);
+  
   vdBackdrop.classList.add("active");
   vdPanel.classList.add("active");
 }
+
+async function pollTrainingStatus(voiceId) {
+    try {
+        const res = await fetch(`http://127.0.0.1:8000/v1/voices/${voiceId}/train/status`);
+        const status = await res.json();
+        
+        const btn = document.getElementById("vdStartTrainingBtn");
+        const display = document.getElementById("vdTrainingStatusDisplay");
+        const badge = document.getElementById("vdTrainedBadge");
+        
+        if (status.status === "complete" || status.status === "idle" && status.message.includes("ready")) {
+            // It's trained
+            btn.style.display = "none";
+            display.style.display = "none";
+            badge.style.display = "block";
+            if (window.trainingPollInterval) clearInterval(window.trainingPollInterval);
+        } else if (["preparing", "training", "saving"].includes(status.status)) {
+            // It's currently training
+            btn.style.display = "none";
+            display.style.display = "block";
+            badge.style.display = "none";
+            
+            document.getElementById("vdTrainStatusText").textContent = 
+                status.status.charAt(0).toUpperCase() + status.status.slice(1) + "...";
+                
+            let pct = 0;
+            if (status.status === "preparing") pct = 10;
+            if (status.status === "training") pct = 10 + (status.epoch / status.total_epochs) * 80;
+            if (status.status === "saving") pct = 95;
+            
+            document.getElementById("vdTrainProgressText").textContent = Math.round(pct) + "%";
+            document.getElementById("vdTrainProgressBar").style.width = pct + "%";
+            
+            let detail = status.message || "";
+            if (status.status === "training" && status.total_epochs > 0) {
+                detail = `Epoch ${status.epoch}/${status.total_epochs} | Loss: ${status.loss}`;
+            }
+            document.getElementById("vdTrainStatusDetail").textContent = detail;
+            
+            // Start polling if not already
+            if (!window.trainingPollInterval) {
+                window.trainingPollInterval = setInterval(() => {
+                    if (activeVoiceDetails && activeVoiceDetails.id === voiceId) {
+                        pollTrainingStatus(voiceId);
+                    } else {
+                        clearInterval(window.trainingPollInterval);
+                    }
+                }, 2000);
+            }
+        } else if (status.status === "error") {
+            btn.style.display = "block";
+            display.style.display = "none";
+            badge.style.display = "none";
+            btn.textContent = "Retry Training (Failed)";
+            btn.style.background = "#ef4444";
+            if (window.trainingPollInterval) clearInterval(window.trainingPollInterval);
+        }
+    } catch (e) {
+        console.error("Failed to poll training status", e);
+    }
+}
+
+document.getElementById("vdStartTrainingBtn").addEventListener("click", async () => {
+    if (!activeVoiceDetails) return;
+    
+    document.getElementById("vdStartTrainingBtn").disabled = true;
+    document.getElementById("vdStartTrainingBtn").textContent = "Starting...";
+    
+    try {
+        await fetch(`http://127.0.0.1:8000/v1/voices/${activeVoiceDetails.id}/train`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ epochs: 15, batch_size: 2 })
+        });
+        // Begin polling
+        pollTrainingStatus(activeVoiceDetails.id);
+    } catch (e) {
+        alert("Failed to start training: " + e.message);
+        document.getElementById("vdStartTrainingBtn").disabled = false;
+        document.getElementById("vdStartTrainingBtn").textContent = "Start Training (15 Epochs)";
+    }
+});
 
 function closeVoiceDetails() {
   vdBackdrop.classList.remove("active");
@@ -592,6 +686,10 @@ function closeVoiceDetails() {
   if (vdTestWavesurfer) vdTestWavesurfer.pause();
   if (vdPronounceWavesurfer) vdPronounceWavesurfer.pause();
   if (currentCardAudio) currentCardAudio.pause();
+  if (window.trainingPollInterval) {
+    clearInterval(window.trainingPollInterval);
+    window.trainingPollInterval = null;
+  }
 }
 
 closeVd.addEventListener("click", closeVoiceDetails);

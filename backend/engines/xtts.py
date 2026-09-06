@@ -84,6 +84,56 @@ class XTTSLocalEngine(TTSEngine):
             return [narrator_path]
         return []
 
+    def _has_finetuned_model(self, speaker: str) -> bool:
+        """Check if a fine-tuned model checkpoint exists for this voice."""
+        model_path = os.path.join(BASE_DIR, "voices", speaker, "model", "best_model.pth")
+        return os.path.exists(model_path)
+
+    def _get_finetuned_model_path(self, speaker: str) -> str:
+        return os.path.join(BASE_DIR, "voices", speaker, "model")
+
+    def _generate_with_finetuned(
+        self,
+        text: str,
+        speaker: str,
+        settings: Dict[str, Any],
+        language: str,
+        output_path: str,
+        reference_rms: float,
+        auto_retry: bool
+    ) -> bool:
+        model_dir = self._get_finetuned_model_path(speaker)
+        speed = float(settings.get("speed", 1.0)) if settings else 1.0
+        
+        start_time = time.time()
+        self.tts_manager.generate_with_finetuned(
+            model_dir=model_dir,
+            text=text,
+            language=language,
+            output_path=output_path,
+            speed=speed,
+        )
+        generation_time = time.time() - start_time
+        
+        # QA Eval
+        from backend.evaluation.chunk_evaluator import chunk_evaluator
+        qa = chunk_evaluator.evaluate(output_path, text, reference_rms)
+        if not qa["passed"]:
+            print(f"[ChunkQA FineTuned] ISSUES: {qa['issues']}")
+            if auto_retry:
+                print(f"[ChunkQA] Retrying...")
+                self.tts_manager.generate_with_finetuned(
+                    model_dir=model_dir,
+                    text=text,
+                    language=language,
+                    output_path=output_path,
+                    speed=speed,
+                )
+        else:
+            print(f"[ChunkQA FineTuned] PASS  dur={qa['metrics'].get('duration_sec')}s")
+            
+        return True
+
     def generate(
         self,
         text: str,
@@ -98,6 +148,18 @@ class XTTSLocalEngine(TTSEngine):
         print(f"[XTTS] Generating: {safe_text}...")
 
         speaker = voice_profile.get("engine_voice_id", "narrator")
+
+        # --- Check for fine-tuned model first (PREMIUM path) ---
+        if self._has_finetuned_model(speaker):
+            print(f"[XTTS] 🌟 Using FINE-TUNED model for '{speaker}'")
+            try:
+                return self._generate_with_finetuned(
+                    text, speaker, settings, language, output_path, reference_rms, auto_retry
+                )
+            except Exception as e:
+                print(f"[XTTS] Fine-tuned generation failed, falling back to zero-shot: {e}")
+
+        # --- Zero-shot path (original behavior) ---
         reference_paths = self._resolve_all_references(speaker)
 
         if not reference_paths:

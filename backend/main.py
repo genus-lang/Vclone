@@ -3,8 +3,8 @@ import os
 import gc
 import time
 import hashlib
-from typing import Optional
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, Body
+from typing import Optional, List
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, Body, BackgroundTasks
 from fastapi.responses import FileResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -243,6 +243,88 @@ async def analyze_audio_quality(file: UploadFile = File(...)):
             os.unlink(wav_path)
             
     return quality
+
+class TrainRequest(BaseModel):
+    epochs: int = 15
+    batch_size: int = 2
+
+import threading
+
+def _run_training_job(voice_id: str, epochs: int, batch_size: int):
+    try:
+        from backend.training.dataset_builder import dataset_builder
+        from backend.training.xtts_trainer import XTTSFineTuner
+        
+        trainer = XTTSFineTuner(voice_id)
+        
+        # 1. We need the raw audio to build the dataset.
+        # Find the raw audio file in voices/raw/
+        raw_dir = os.path.join(BASE_DIR, "voices", "raw")
+        raw_file = None
+        if os.path.exists(raw_dir):
+            for f in os.listdir(raw_dir):
+                if f.startswith(f"{voice_id}_") and f.endswith(".wav"):
+                    raw_file = os.path.join(raw_dir, f)
+                    break
+                    
+        if not raw_file:
+            trainer._update_status("error", message="Raw audio file not found for this voice.")
+            return
+
+        trainer._update_status("preparing", 0, epochs, message="Building dataset...")
+        dataset_info = dataset_builder.build_dataset(
+            audio_path=raw_file,
+            voice_id=voice_id,
+            language="hi",
+            min_clip_sec=3.0,
+            max_clip_sec=15.0,
+            progress_callback=lambda stage, pct, msg: trainer._update_status("preparing", 0, epochs, message=f"[{pct}%] {msg}")
+        )
+        
+        dataset_builder.unload_whisper()
+        
+        if dataset_info["num_clips"] < 5:
+            trainer._update_status("error", message="Not enough valid speech clips found in audio.")
+            return
+            
+        # 2. Train
+        trainer.train(
+            dataset_dir=dataset_info["dataset_dir"],
+            epochs=epochs,
+            batch_size=batch_size,
+            language="hi"
+        )
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        # The trainer internally logs to status as well, but just in case
+        print(f"Training failed: {e}")
+
+@app.post("/v1/voices/{voice_id}/train")
+def train_voice(voice_id: str, request: TrainRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    voice = db.query(Voice).filter(Voice.id == voice_id).first()
+    if not voice:
+        raise HTTPException(status_code=404, detail="Voice not found")
+        
+    from backend.training.xtts_trainer import XTTSFineTuner
+    trainer = XTTSFineTuner(voice_id)
+    status = trainer.get_status()
+    
+    if status["status"] in ["preparing", "training", "saving"]:
+        return {"status": "already_training"}
+        
+    # Run in background thread so we don't block the API
+    t = threading.Thread(target=_run_training_job, args=(voice_id, request.epochs, request.batch_size))
+    t.start()
+    
+    return {"status": "training_started"}
+
+@app.get("/v1/voices/{voice_id}/train/status")
+def get_training_status(voice_id: str):
+    from backend.training.xtts_trainer import XTTSFineTuner
+    trainer = XTTSFineTuner(voice_id)
+    return trainer.get_status()
 
 @app.get("/health")
 def health_check():
