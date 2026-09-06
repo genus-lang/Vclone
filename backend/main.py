@@ -11,6 +11,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import torch
 from datetime import datetime
+import asyncio
+from fastapi.middleware.cors import CORSMiddleware
 
 # Configure sys path for root imports
 import sys
@@ -34,6 +36,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = FastAPI(title="Web Studio TTS Platform API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Global lock to prevent GPU out-of-memory on concurrent TTS requests
+tts_lock = asyncio.Lock()
 
 # Serve the web studio at root
 os.makedirs(os.path.join(BASE_DIR, "frontend"), exist_ok=True)

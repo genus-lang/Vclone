@@ -392,6 +392,7 @@ const navVoices = document.getElementById("navVoices");
 const navHistory = document.getElementById("navHistory");
 const navCreateVoice = document.getElementById("navCreateVoice");
 const navPronunciations = document.getElementById("navPronunciations");
+const navApi = document.getElementById("navApi");
 
 function switchTab(tabName) {
   navStudio.classList.remove("active");
@@ -399,6 +400,7 @@ function switchTab(tabName) {
   navHistory.classList.remove("active");
   if(navCreateVoice) navCreateVoice.classList.remove("active");
   if(navPronunciations) navPronunciations.classList.remove("active");
+  if(navApi) navApi.classList.remove("active");
   
   studioView.style.display = "none";
   voicesView.style.display = "none";
@@ -406,6 +408,8 @@ function switchTab(tabName) {
   if(createVoiceView) createVoiceView.style.display = "none";
   const pronView = document.getElementById("pronunciationsView");
   if(pronView) pronView.style.display = "none";
+  const apiView = document.getElementById("apiView");
+  if(apiView) apiView.style.display = "none";
   
   if (tabName === "Studio") {
     navStudio.classList.add("active");
@@ -425,6 +429,9 @@ function switchTab(tabName) {
     if(navPronunciations) navPronunciations.classList.add("active");
     if(pronView) pronView.style.display = "block";
     loadPronunciations();
+  } else if (tabName === "API") {
+    if(navApi) navApi.classList.add("active");
+    if(apiView) apiView.style.display = "block";
   }
 }
 
@@ -433,6 +440,7 @@ navVoices.addEventListener("click", () => switchTab("Voices"));
 navHistory.addEventListener("click", () => switchTab("History"));
 if (navCreateVoice) navCreateVoice.addEventListener("click", () => switchTab("CreateVoice"));
 if (navPronunciations) navPronunciations.addEventListener("click", () => switchTab("Pronunciations"));
+if (navApi) navApi.addEventListener("click", () => switchTab("API"));
 
 
 // Voice Library Grid & Filtering
@@ -1229,3 +1237,46 @@ if (addPronBtn) {
     }
   });
 }
+// API Documentation Logic
+document.addEventListener("DOMContentLoaded", () => {
+  const tabBtns = document.querySelectorAll(".api-card .tab-btn");
+  tabBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      // Remove active from all tabs in this group
+      const parentTabs = btn.closest(".tabs");
+      parentTabs.querySelectorAll(".tab-btn").forEach(t => t.classList.remove("active"));
+      // Add active to clicked
+      btn.classList.add("active");
+      
+      // Hide all contents in this container
+      const codeExamples = btn.closest(".code-examples");
+      codeExamples.querySelectorAll(".code-content").forEach(c => {
+        c.classList.remove("active");
+        c.style.display = "none";
+      });
+      
+      // Show target
+      const targetId = btn.getAttribute("data-target");
+      const target = document.getElementById(targetId);
+      if (target) {
+        target.classList.add("active");
+        target.style.display = "block";
+      }
+    });
+  });
+
+  const copyBtns = document.querySelectorAll(".copy-btn");
+  copyBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const codeBlock = btn.nextElementSibling;
+      if (codeBlock) {
+        navigator.clipboard.writeText(codeBlock.textContent).then(() => {
+          const origText = btn.textContent;
+          btn.textContent = "Copied!";
+          setTimeout(() => { btn.textContent = origText; }, 2000);
+        });
+      }
+    });
+  });
+});
+

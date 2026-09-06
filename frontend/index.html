@@ -40,7 +40,7 @@
         <span>AA</span>
         Pronunciations
       </a>
-      <a class="nav-item">
+      <a class="nav-item" id="navApi">
         <span>⌘</span>
         API
       </a>
@@ -499,6 +499,163 @@ The wind moved slowly through the trees, and somewhere in the distance, he heard
         </div>
       </section>
     </div> <!-- end historyView -->
+
+    <!-- API VIEW -->
+    <div id="apiView" class="view" style="display: none;">
+      <section class="api-section">
+        <div class="api-header">
+          <h2>API Reference</h2>
+          <p style="color: var(--muted); font-size: 0.95rem;">Integrate your custom voices into any application or script.</p>
+        </div>
+
+        <div class="api-card">
+          <h3>Authentication & Base URL</h3>
+          <p>VoxAI runs locally on your machine. All API requests should be made to your local server.</p>
+          <div class="code-block-container">
+            <code class="code-snippet">http://127.0.0.1:8000/v1</code>
+          </div>
+          <p class="api-note">No API keys are required for localhost access.</p>
+        </div>
+
+        <div class="api-card">
+          <h3><span class="method-badge post">POST</span> /v1/audio/speech</h3>
+          <p>Generate speech from text using any of your cloned voices.</p>
+          
+          <h4 class="api-subtitle">Request Body (JSON)</h4>
+          <table class="api-params-table">
+            <thead>
+              <tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>input</code><span class="required">*</span></td>
+                <td>string</td>
+                <td>The text to synthesize. Maximum 5000 characters.</td>
+              </tr>
+              <tr>
+                <td><code>voice</code><span class="required">*</span></td>
+                <td>string</td>
+                <td>The Voice ID to use (e.g., <code>"modi"</code>, <code>"meghram"</code>).</td>
+              </tr>
+              <tr>
+                <td><code>language</code></td>
+                <td>string</td>
+                <td>Language code: <code>"en"</code>, <code>"hi"</code>, etc. Defaults to <code>"en"</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="code-examples">
+            <div class="tabs">
+              <button class="tab-btn active" data-target="code-curl">cURL</button>
+              <button class="tab-btn" data-target="code-python">Python</button>
+              <button class="tab-btn" data-target="code-node">Node.js</button>
+            </div>
+            
+            <div id="code-curl" class="code-content active">
+              <button class="copy-btn">Copy</button>
+              <pre><code>curl -X POST http://127.0.0.1:8000/v1/audio/speech \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": "Hello world, this is a test of my cloned voice.",
+    "voice": "my_custom_voice",
+    "language": "en"
+  }' \
+  --output speech.mp3</code></pre>
+            </div>
+
+            <div id="code-python" class="code-content" style="display: none;">
+              <button class="copy-btn">Copy</button>
+              <pre><code>import requests
+
+url = "http://127.0.0.1:8000/v1/audio/speech"
+payload = {
+    "input": "Hello world, this is a test of my cloned voice.",
+    "voice": "my_custom_voice",
+    "language": "en"
+}
+
+response = requests.post(url, json=payload)
+
+with open("speech.mp3", "wb") as f:
+    f.write(response.content)
+print("Audio saved as speech.mp3")</code></pre>
+            </div>
+
+            <div id="code-node" class="code-content" style="display: none;">
+              <button class="copy-btn">Copy</button>
+              <pre><code>const fs = require('fs');
+
+fetch("http://127.0.0.1:8000/v1/audio/speech", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    input: "Hello world, this is a test of my cloned voice.",
+    voice: "my_custom_voice",
+    language: "en"
+  })
+})
+.then(res => res.arrayBuffer())
+.then(buffer => {
+  fs.writeFileSync("speech.mp3", Buffer.from(buffer));
+  console.log("Audio saved as speech.mp3");
+});</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="api-card">
+          <h3><span class="method-badge get">GET</span> /v1/voices</h3>
+          <p>Retrieve a list of all available voices and their IDs.</p>
+          <div class="code-examples">
+            <div class="code-content active" style="margin-top: 10px;">
+              <button class="copy-btn">Copy</button>
+              <pre><code>curl http://127.0.0.1:8000/v1/voices</code></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div> <!-- end apiView -->
+
+    <!-- PRONUNCIATIONS VIEW -->
+    <div id="pronunciationsView" class="view" style="display: none;">
+      <section class="voices-section">
+        <div class="voices-header">
+          <div>
+            <h2>Pronunciation Dictionary</h2>
+            <p style="color: var(--muted); font-size: 0.9rem;">Teach the AI how to properly pronounce specific words like character names or locations.</p>
+          </div>
+        </div>
+        <div style="background: #17181c; padding: 24px; border-radius: 8px; border: 1px solid var(--border);">
+          <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+            <input type="text" id="pronOriginal" placeholder="Original word (e.g. Fu Qian)" class="vs-input">
+            <input type="text" id="pronSayAs" placeholder="Say as (e.g. फू चिएन)" class="vs-input">
+            <select id="pronLanguage" class="vs-input" style="max-width: 150px;">
+              <option value="all">All Languages</option>
+              <option value="hi">Hindi</option>
+              <option value="en">English</option>
+            </select>
+            <button id="addPronBtn" class="primary-btn">Add Word</button>
+          </div>
+          
+          <div style="background: #23252d; border-radius: 6px; border: 1px solid var(--border); overflow: hidden;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left;">
+              <thead style="background: #2a2d36; border-bottom: 1px solid var(--border);">
+                <tr>
+                  <th style="padding: 12px 16px; color: var(--muted); font-weight: 500; font-size: 13px;">Original Word</th>
+                  <th style="padding: 12px 16px; color: var(--muted); font-weight: 500; font-size: 13px;">Pronunciation</th>
+                  <th style="padding: 12px 16px; color: var(--muted); font-weight: 500; font-size: 13px;">Language</th>
+                  <th style="padding: 12px 16px; color: var(--muted); font-weight: 500; font-size: 13px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="pronTableBody">
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
   </main>
 </div>
 
@@ -764,46 +921,6 @@ The wind moved slowly through the trees, and somewhere in the distance, he heard
       <button class="primary-btn" id="vsSaveDefaultBtn">Save as Default</button>
     </div>
   </div>
-</div>
-
-<!-- PRONUNCIATIONS VIEW -->
-<div id="pronunciationsView" class="view" style="display: none;">
-  <section class="voices-section">
-    <div class="voices-header">
-      <div>
-        <h2>Pronunciation Dictionary</h2>
-        <p style="color: var(--muted); font-size: 0.9rem;">Teach the AI how to properly pronounce specific words like character names or locations.</p>
-      </div>
-    </div>
-    <div style="background: #17181c; padding: 24px; border-radius: 8px; border: 1px solid var(--border);">
-      <div style="display: flex; gap: 16px; margin-bottom: 24px;">
-        <input type="text" id="pronOriginal" placeholder="Original word (e.g. Fu Qian)" class="vs-input">
-        <input type="text" id="pronSayAs" placeholder="Say as (e.g. फू चिएन)" class="vs-input">
-        <select id="pronLanguage" class="vs-input" style="max-width: 150px;">
-          <option value="all">All Languages</option>
-          <option value="hi">Hindi</option>
-          <option value="en">English</option>
-        </select>
-        <button id="addPronBtn" class="primary-btn">Add Word</button>
-      </div>
-      
-      <div style="background: #23252d; border-radius: 6px; border: 1px solid var(--border); overflow: hidden;">
-        <table style="width: 100%; border-collapse: collapse; text-align: left;">
-          <thead style="background: #2a2d36; border-bottom: 1px solid var(--border);">
-            <tr>
-              <th style="padding: 12px 16px; color: var(--muted); font-weight: 500; font-size: 13px;">Original Word</th>
-              <th style="padding: 12px 16px; color: var(--muted); font-weight: 500; font-size: 13px;">Pronunciation</th>
-              <th style="padding: 12px 16px; color: var(--muted); font-weight: 500; font-size: 13px;">Language</th>
-              <th style="padding: 12px 16px; color: var(--muted); font-weight: 500; font-size: 13px;">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="pronTableBody">
-            <!-- Populated by JS -->
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </section>
 </div>
 
 <!-- WaveSurfer.js CDN -->

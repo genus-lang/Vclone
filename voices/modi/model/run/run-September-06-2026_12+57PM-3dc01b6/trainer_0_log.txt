@@ -11,3 +11,11 @@
  | > Torch CUDNN deterministic: False
  | > Torch CUDNN benchmark: False
  | > Torch TF32 MatMul: False
+ > Start Tensorboard: tensorboard --logdir=D:\dev\tts\voices\modi\model\run\run-September-06-2026_12+57PM-3dc01b6
+
+ > Model has 498699671 parameters
+
+[4m[1m > EPOCH: 0/14[0m
+ --> D:\dev\tts\voices\modi\model\run\run-September-06-2026_12+57PM-3dc01b6
+
+[1m > TRAINING (2026-09-06 12:57:23) [0m

@@ -152,7 +152,6 @@ class XTTSFineTuner:
                 optimizer_params={"betas": [0.9, 0.96], "eps": 1e-8, "weight_decay": 1e-2},
                 lr_scheduler="StepLR",
                 lr_scheduler_params={"step_size": 50, "gamma": 0.5, "last_epoch": -1},
-                grad_clip=[1000.0],
                 run_eval=False,  # Skip eval to save time
                 print_step=25,
                 save_step=1000,
