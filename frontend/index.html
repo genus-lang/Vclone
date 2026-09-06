@@ -510,11 +510,13 @@ The wind moved slowly through the trees, and somewhere in the distance, he heard
 
         <div class="api-card">
           <h3>Authentication & Base URL</h3>
-          <p>VoxAI runs locally on your machine. All API requests should be made to your local server.</p>
+          <p>By default, VoxAI runs locally. All API requests should be made to your local server.</p>
           <div class="code-block-container">
             <code class="code-snippet">http://127.0.0.1:8000/v1</code>
           </div>
-          <p class="api-note">No API keys are required for localhost access.</p>
+          <p class="api-note" style="margin-top: 12px; font-weight: bold; color: #a78bfa;">🌐 Need to access this API from the internet?</p>
+          <p class="api-note">Run the <code style="background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 4px;">start_public_server.ps1</code> script in your installation folder. It will generate a secure, public HTTPS URL (via LocalTunnel) that you can use instead of <code>http://127.0.0.1:8000</code>.</p>
+          <p class="api-note">No API keys are currently required. Do not share your public URL if you want to keep the server private.</p>
         </div>
 
         <div class="api-card">
@@ -556,6 +558,7 @@ The wind moved slowly through the trees, and somewhere in the distance, he heard
               <button class="copy-btn">Copy</button>
               <pre><code>curl -X POST http://127.0.0.1:8000/v1/audio/speech \
   -H "Content-Type: application/json" \
+  -H "bypass-tunnel-reminder: true" \
   -d '{
     "input": "Hello world, this is a test of my cloned voice.",
     "voice": "my_custom_voice",
@@ -569,13 +572,16 @@ The wind moved slowly through the trees, and somewhere in the distance, he heard
               <pre><code>import requests
 
 url = "http://127.0.0.1:8000/v1/audio/speech"
+headers = {
+    "bypass-tunnel-reminder": "true"
+}
 payload = {
     "input": "Hello world, this is a test of my cloned voice.",
     "voice": "my_custom_voice",
     "language": "en"
 }
 
-response = requests.post(url, json=payload)
+response = requests.post(url, json=payload, headers=headers)
 
 with open("speech.mp3", "wb") as f:
     f.write(response.content)
@@ -588,7 +594,10 @@ print("Audio saved as speech.mp3")</code></pre>
 
 fetch("http://127.0.0.1:8000/v1/audio/speech", {
   method: "POST",
-  headers: { "Content-Type": "application/json" },
+  headers: { 
+    "Content-Type": "application/json",
+    "bypass-tunnel-reminder": "true"
+  },
   body: JSON.stringify({
     input: "Hello world, this is a test of my cloned voice.",
     voice: "my_custom_voice",
@@ -610,7 +619,7 @@ fetch("http://127.0.0.1:8000/v1/audio/speech", {
           <div class="code-examples">
             <div class="code-content active" style="margin-top: 10px;">
               <button class="copy-btn">Copy</button>
-              <pre><code>curl http://127.0.0.1:8000/v1/voices</code></pre>
+              <pre><code>curl -H "bypass-tunnel-reminder: true" http://127.0.0.1:8000/v1/voices</code></pre>
             </div>
           </div>
         </div>

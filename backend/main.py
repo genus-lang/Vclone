@@ -821,7 +821,7 @@ def generate_compare(voice_id: str, request: CompareRequest, db: Session = Depen
 # ---- AUDIO GENERATION ----
 
 @app.post("/v1/audio/speech")
-def generate_speech(request: SpeechRequest, db: Session = Depends(get_db)):
+async def generate_speech(request: SpeechRequest, db: Session = Depends(get_db)):
     os.makedirs(os.path.join(BASE_DIR, "output", "single"), exist_ok=True)
     
     # settings_hash
@@ -834,7 +834,6 @@ def generate_speech(request: SpeechRequest, db: Session = Depends(get_db)):
     
     cache_string = f"{text_hash}_{request.voice}_{request.model}_{settings_hash}"
     cache_key = hashlib.md5(cache_string.encode("utf-8")).hexdigest()
-    
     
     base_voice_id = request.voice
     version_settings = None
@@ -867,10 +866,11 @@ def generate_speech(request: SpeechRequest, db: Session = Depends(get_db)):
         audio_url = f"/audio/single/{os.path.basename(actual_path)}"
         return {"id": audio_id, "status": "completed", "audio_url": audio_url, "cached": True}
     
-    print(f"Cache miss for {request.voice}. Generating...")
+    print(f"Cache miss for {request.voice}. Queuing for generation...")
     try:
-        # Use new TextPipeline
-        target_lang = voice.language.split("-")[0] if voice.language else "hi"
+        async with tts_lock:
+            # Use new TextPipeline
+            target_lang = voice.language.split("-")[0] if voice.language else "hi"
         chunks = text_pipeline.process_chapter(request.input, target_lang)
         
         if len(chunks) <= 1:
