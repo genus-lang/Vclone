@@ -16,6 +16,7 @@ class Voice(Base):
     
     settings = relationship("VoiceSettings", back_populates="voice", uselist=False, cascade="all, delete-orphan")
     versions = relationship("VoiceVersion", back_populates="voice", cascade="all, delete-orphan")
+    profiles = relationship("VoiceProfile", back_populates="voice", cascade="all, delete-orphan")
 
 
 class VoiceSettings(Base):
@@ -95,7 +96,7 @@ class VoiceProfile(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     
     references = relationship("VoiceReference", back_populates="profile", cascade="all, delete-orphan")
-    voice = relationship("Voice")
+    voice = relationship("Voice", back_populates="profiles")
 
 class VoiceReference(Base):
     __tablename__ = "voice_references"

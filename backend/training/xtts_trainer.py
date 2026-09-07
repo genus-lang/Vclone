@@ -158,7 +158,7 @@ class XTTSFineTuner:
                 save_n_checkpoints=2,
                 save_checkpoints=True,
                 save_all_best=True,
-                dashboard_logger="",
+                dashboard_logger="tensorboard",
                 datasets=[dataset_config],
             )
 

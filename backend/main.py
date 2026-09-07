@@ -261,7 +261,9 @@ class TrainRequest(BaseModel):
     epochs: int = 15
     batch_size: int = 2
 
-import threading
+import multiprocessing
+
+ACTIVE_TRAINING_PROCESSES = {}
 
 def _run_training_job(voice_id: str, epochs: int, batch_size: int):
     try:
@@ -271,10 +273,14 @@ def _run_training_job(voice_id: str, epochs: int, batch_size: int):
         trainer = XTTSFineTuner(voice_id)
         
         # 1. We need the raw audio to build the dataset.
-        # Find the raw audio file in voices/raw/
         raw_dir = os.path.join(BASE_DIR, "voices", "raw")
         raw_file = None
-        if os.path.exists(raw_dir):
+        
+        # Prioritize custom uploaded file for training
+        upload_path = os.path.join(raw_dir, f"{voice_id}_upload.wav")
+        if os.path.exists(upload_path):
+            raw_file = upload_path
+        elif os.path.exists(raw_dir):
             for f in os.listdir(raw_dir):
                 if f.startswith(f"{voice_id}_") and f.endswith(".wav"):
                     raw_file = os.path.join(raw_dir, f)
@@ -296,8 +302,8 @@ def _run_training_job(voice_id: str, epochs: int, batch_size: int):
         
         dataset_builder.unload_whisper()
         
-        if dataset_info["num_clips"] < 5:
-            trainer._update_status("error", message="Not enough valid speech clips found in audio.")
+        if dataset_info["num_clips"] < 2:
+            trainer._update_status("error", message="Not enough valid speech clips found in audio. Minimum is 2.")
             return
             
         # 2. Train
@@ -310,9 +316,16 @@ def _run_training_job(voice_id: str, epochs: int, batch_size: int):
         
     except Exception as e:
         import traceback
-        traceback.print_exc()
-        # The trainer internally logs to status as well, but just in case
-        print(f"Training failed: {e}")
+        trace_str = traceback.format_exc()
+        print(f"Training failed with exception:\n{trace_str}")
+        
+        # Make sure the UI knows it failed
+        try:
+            from backend.training.xtts_trainer import XTTSFineTuner
+            trainer = XTTSFineTuner(voice_id)
+            trainer._update_status("error", message=str(e))
+        except:
+            pass
 
 @app.post("/v1/voices/{voice_id}/train")
 def train_voice(voice_id: str, request: TrainRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
@@ -327,11 +340,52 @@ def train_voice(voice_id: str, request: TrainRequest, background_tasks: Backgrou
     if status["status"] in ["preparing", "training", "saving"]:
         return {"status": "already_training"}
         
-    # Run in background thread so we don't block the API
-    t = threading.Thread(target=_run_training_job, args=(voice_id, request.epochs, request.batch_size))
-    t.start()
+    # Run in background process so we can terminate it
+    p = multiprocessing.Process(target=_run_training_job, args=(voice_id, request.epochs, request.batch_size))
+    p.start()
+    ACTIVE_TRAINING_PROCESSES[voice_id] = p
     
     return {"status": "training_started"}
+
+@app.post("/v1/voices/{voice_id}/train/cancel")
+def cancel_training(voice_id: str):
+    p = ACTIVE_TRAINING_PROCESSES.get(voice_id)
+    if p and p.is_alive():
+        p.terminate()
+        p.join()
+        del ACTIVE_TRAINING_PROCESSES[voice_id]
+        
+    from backend.training.xtts_trainer import XTTSFineTuner
+    trainer = XTTSFineTuner(voice_id)
+    trainer._update_status("aborted", message="Training was cancelled by the user.")
+    
+    return {"status": "cancelled"}
+
+@app.post("/v1/voices/{voice_id}/train/upload")
+async def upload_training_audio(voice_id: str, file: UploadFile = File(...)):
+    import tempfile
+    from pydub import AudioSegment
+    
+    raw_dir = os.path.join(BASE_DIR, "voices", "raw")
+    os.makedirs(raw_dir, exist_ok=True)
+    
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        content = await file.read()
+        tmp.write(content)
+        tmp_path = tmp.name
+        
+    final_path = os.path.join(raw_dir, f"{voice_id}_upload.wav")
+    
+    try:
+        audio = AudioSegment.from_file(tmp_path)
+        audio = audio.set_channels(1).set_frame_rate(22050)
+        audio.export(final_path, format="wav")
+    except Exception as e:
+        os.unlink(tmp_path)
+        raise HTTPException(status_code=400, detail=f"Failed to process audio: {e}")
+        
+    os.unlink(tmp_path)
+    return {"status": "success", "message": "Custom training audio uploaded"}
 
 @app.get("/v1/voices/{voice_id}/train/status")
 def get_training_status(voice_id: str):

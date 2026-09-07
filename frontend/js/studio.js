@@ -92,6 +92,22 @@ async function openVoiceStudio(voice) {
   document.getElementById("inp-personality").value = 50;
   document.getElementById("inp-authority").value = 50;
   
+  // Setup Training UI
+  const trainBtn = document.getElementById("vdStartTrainingBtn");
+  const trainStatus = document.getElementById("vdTrainingStatusDisplay");
+  const trainBadge = document.getElementById("vdTrainedBadge");
+  if (trainBtn) trainBtn.style.display = "block";
+  if (trainStatus) trainStatus.style.display = "none";
+  if (trainBadge) trainBadge.style.display = "none";
+  
+  if (window.trainingPollInterval) {
+    clearInterval(window.trainingPollInterval);
+    window.trainingPollInterval = null;
+  }
+  if (typeof pollTrainingStatus === "function") {
+      pollTrainingStatus(voice.id);
+  }
+
   // Switch to first tab
   document.querySelector('.vs-tab[data-tab="tab-character"]').click();
   
@@ -479,10 +495,15 @@ document.getElementById("vsGenerateBtn").addEventListener("click", async () => {
   
   const btn = document.getElementById("vsGenerateBtn");
   const originalText = btn.textContent;
-  btn.textContent = "Generating...";
   btn.disabled = true;
   document.getElementById("vsAudioResult").style.display = "none";
   document.getElementById("vsCompareResult").style.display = "none";
+  
+  let startTime = Date.now();
+  btn.textContent = `Generating... (0.0s)`;
+  let timer = setInterval(() => {
+    btn.textContent = `Generating... (${((Date.now() - startTime) / 1000).toFixed(1)}s)`;
+  }, 100);
   
   try {
     const settings = getCurrentStudioSettings();
@@ -493,6 +514,7 @@ document.getElementById("vsGenerateBtn").addEventListener("click", async () => {
   } catch (e) {
     alert("Failed: " + e.message);
   } finally {
+    clearInterval(timer);
     btn.textContent = originalText;
     btn.disabled = false;
   }
@@ -505,9 +527,14 @@ document.getElementById("vsCompareBtn").addEventListener("click", async () => {
   
   const btn = document.getElementById("vsCompareBtn");
   const originalText = btn.textContent;
-  btn.textContent = "Comparing...";
   btn.disabled = true;
   document.getElementById("vsAudioResult").style.display = "none";
+  
+  let startTime = Date.now();
+  btn.textContent = `Comparing... (0.0s)`;
+  let timer = setInterval(() => {
+    btn.textContent = `Comparing... (${((Date.now() - startTime) / 1000).toFixed(1)}s)`;
+  }, 100);
   
   try {
     const settingsB = getCurrentStudioSettings();
@@ -523,6 +550,7 @@ document.getElementById("vsCompareBtn").addEventListener("click", async () => {
   } catch (e) {
     alert("Failed: " + e.message);
   } finally {
+    clearInterval(timer);
     btn.textContent = originalText;
     btn.disabled = false;
   }

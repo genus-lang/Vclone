@@ -282,28 +282,7 @@ The wind moved slowly through the trees, and somewhere in the distance, he heard
             </div>
           </div>
           
-          <div class="panel-section" id="vdTrainingSection" style="background: rgba(139, 92, 246, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.2);">
-            <h3>🧠 Premium Fine-Tuning</h3>
-            <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 10px; line-height: 1.4;">Upgrade this voice from zero-shot (10% accuracy) to a fully fine-tuned model (90%+ accuracy). This takes 15-30 minutes and requires a GPU.</p>
-            
-            <div id="vdTrainingStatusDisplay" style="display: none; margin-bottom: 15px;">
-                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 5px;">
-                    <span id="vdTrainStatusText" style="color: #10b981;">Training...</span>
-                    <span id="vdTrainProgressText">0%</span>
-                </div>
-                <div style="width: 100%; background: rgba(255,255,255,0.1); border-radius: 4px; height: 6px; overflow: hidden;">
-                    <div id="vdTrainProgressBar" style="height: 100%; background: #10b981; width: 0%; transition: width 0.3s ease;"></div>
-                </div>
-                <p id="vdTrainStatusDetail" style="font-size: 0.75rem; color: var(--muted); margin-top: 6px; font-family: monospace;">Epoch 0/15</p>
-            </div>
-            
-            <button class="primary-btn" id="vdStartTrainingBtn" style="width: 100%; background: #8b5cf6; border-color: #7c3aed;">
-                Start Training (15 Epochs)
-            </button>
-            <div id="vdTrainedBadge" style="display: none; color: #10b981; text-align: center; font-weight: bold; margin-top: 10px;">
-                ✅ Premium Model Ready
-            </div>
-          </div>
+                    </div>
 
           <div class="panel-section">
             <h3>Pronunciation Lab</h3>
@@ -688,6 +667,7 @@ fetch("http://127.0.0.1:8000/v1/audio/speech", {
     <div class="vs-tab" data-tab="tab-delivery">Delivery</div>
     <div class="vs-tab" data-tab="tab-advanced">Advanced</div>
     <div class="vs-tab" data-tab="tab-versions">Versions</div>
+            <div class="vs-tab" data-tab="tab-training">Training</div>
   </div>
   
   <div class="vs-content">
@@ -790,19 +770,19 @@ fetch("http://127.0.0.1:8000/v1/audio/speech", {
           <div class="vs-control-header"><label>Emotion</label></div>
           <div class="vs-radio-group">
             <input type="radio" name="emotion" id="emo-neutral" value="neutral" checked>
-            <label for="emo-neutral">Neutral</label>
+            <label for="emo-neutral">😐 Neutral</label>
             
             <input type="radio" name="emotion" id="emo-happy" value="happy">
-            <label for="emo-happy">Happy</label>
+            <label for="emo-happy">😄 Happy</label>
             
             <input type="radio" name="emotion" id="emo-sad" value="sad">
-            <label for="emo-sad">Sad</label>
+            <label for="emo-sad">😢 Sad</label>
             
             <input type="radio" name="emotion" id="emo-angry" value="angry">
-            <label for="emo-angry">Angry</label>
+            <label for="emo-angry">😡 Angry</label>
             
             <input type="radio" name="emotion" id="emo-dramatic" value="dramatic">
-            <label for="emo-dramatic">Dramatic</label>
+            <label for="emo-dramatic">🎭 Dramatic</label>
           </div>
         </div>
         
@@ -870,6 +850,44 @@ fetch("http://127.0.0.1:8000/v1/audio/speech", {
           </div>
           <input type="range" id="inp-breathiness" min="0" max="100" value="10">
         </div>
+        
+        <hr style="border:0; border-top: 1px solid rgba(255,255,255,0.05); margin: 24px 0;">
+        <h3>EXPORT OPTIONS</h3>
+        
+        <div class="vs-control">
+          <div class="vs-control-header"><label>Export Format</label></div>
+          <div class="vs-radio-group">
+            <input type="radio" name="export-format" id="fmt-mp3" value="mp3" checked>
+            <label for="fmt-mp3">MP3 (Compressed)</label>
+            <input type="radio" name="export-format" id="fmt-wav" value="wav">
+            <label for="fmt-wav">WAV (Lossless)</label>
+          </div>
+        </div>
+        
+        <div class="vs-control">
+          <div class="vs-control-header"><label>Sample Rate</label></div>
+          <div class="vs-radio-group">
+            <input type="radio" name="sample-rate" id="sr-24" value="24000" checked>
+            <label for="sr-24">24,000 Hz</label>
+            <input type="radio" name="sample-rate" id="sr-44" value="44100">
+            <label for="sr-44">44,100 Hz</label>
+            <input type="radio" name="sample-rate" id="sr-48" value="48000">
+            <label for="sr-48">48,000 Hz</label>
+          </div>
+        </div>
+        
+        <div class="vs-control">
+          <div style="display:flex; justify-content: space-between; align-items:center; background: rgba(0,0,0,0.2); padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+            <div>
+              <div style="font-size: 13px; font-weight: 600; color: white;">Audio Cleanup & Noise Reduction</div>
+              <div style="font-size: 11px; color: var(--muted); margin-top:4px;">Uses DSP algorithms to remove static and background hiss from generated audio.</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="inp-cleanup" checked>
+              <span class="slider round"></span>
+            </label>
+          </div>
+        </div>
       </div>
     </div>
     
@@ -886,6 +904,40 @@ fetch("http://127.0.0.1:8000/v1/audio/speech", {
         <div style="margin-top: 24px; display: flex; gap: 8px;">
           <input type="text" id="vsNewVersionName" placeholder="e.g. Villain" style="flex: 1; background: #23252d; border: 1px solid var(--border); color: white; padding: 8px; border-radius: 4px;">
           <button class="primary-btn" id="vsSaveVersionBtn" style="padding: 8px 16px;">Save Current</button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="vs-tab-content" id="tab-training">
+      <div style="padding: 20px;">
+        <h3>🧠 Premium Fine-Tuning</h3>
+        <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 10px; line-height: 1.4;">Upgrade this voice from zero-shot (10% accuracy) to a fully fine-tuned model (90%+ accuracy). This takes 15-30 minutes and requires a GPU.</p>
+        
+        <div id="vdTrainingStatusDisplay" style="display: none; margin-bottom: 15px;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 5px;">
+                <span id="vdTrainStatusText" style="color: #10b981;">Training...</span>
+                <span id="vdTrainProgressText">0%</span>
+            </div>
+            <div style="width: 100%; background: rgba(255,255,255,0.1); border-radius: 4px; height: 6px; overflow: hidden;">
+                <div id="vdTrainProgressBar" style="height: 100%; background: #10b981; width: 0%; transition: width 0.3s ease;"></div>
+            </div>
+            <p id="vdTrainStatusDetail" style="font-size: 0.75rem; color: var(--muted); margin-top: 6px; font-family: monospace;">Epoch 0/15</p>
+        </div>
+        
+        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+            <button class="primary-btn" id="vdStartTrainingBtn" style="flex: 2; background: #8b5cf6; border-color: #7c3aed;">
+                Start Training (15 Epochs)
+            </button>
+            <button class="primary-btn" id="vdStopTrainingBtn" style="display: none; flex: 2; background: #ef4444; border-color: #dc2626;">
+                🛑 Stop Training
+            </button>
+            <input type="file" id="vdUploadAudioInput" accept="audio/*" style="display: none;">
+            <button class="secondary-btn" id="vdUploadAudioBtn" style="flex: 1;" title="Upload custom raw audio for fine-tuning">
+                Upload Custom Audio
+            </button>
+        </div>
+        <div id="vdTrainedBadge" style="display: none; color: #10b981; text-align: center; font-weight: bold; margin-top: 10px;">
+            ✅ Premium Model Ready
         </div>
       </div>
     </div>

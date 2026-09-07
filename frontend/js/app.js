@@ -611,18 +611,24 @@ async function pollTrainingStatus(voiceId) {
         const status = await res.json();
         
         const btn = document.getElementById("vdStartTrainingBtn");
+        const stopBtn = document.getElementById("vdStopTrainingBtn");
+        const uploadBtn = document.getElementById("vdUploadAudioBtn");
         const display = document.getElementById("vdTrainingStatusDisplay");
         const badge = document.getElementById("vdTrainedBadge");
         
         if (status.status === "complete" || status.status === "idle" && status.message.includes("ready")) {
             // It's trained
             btn.style.display = "none";
+            stopBtn.style.display = "none";
+            uploadBtn.style.display = "none";
             display.style.display = "none";
             badge.style.display = "block";
             if (window.trainingPollInterval) clearInterval(window.trainingPollInterval);
         } else if (["preparing", "training", "saving"].includes(status.status)) {
             // It's currently training
             btn.style.display = "none";
+            stopBtn.style.display = "block";
+            uploadBtn.style.display = "none";
             display.style.display = "block";
             badge.style.display = "none";
             
@@ -646,20 +652,46 @@ async function pollTrainingStatus(voiceId) {
             // Start polling if not already
             if (!window.trainingPollInterval) {
                 window.trainingPollInterval = setInterval(() => {
-                    if (activeVoiceDetails && activeVoiceDetails.id === voiceId) {
+                    const currentVoice = (typeof activeStudioVoice !== 'undefined' && activeStudioVoice) ? activeStudioVoice : activeVoiceDetails;
+                    if (currentVoice && currentVoice.id === voiceId) {
                         pollTrainingStatus(voiceId);
                     } else {
                         clearInterval(window.trainingPollInterval);
                     }
                 }, 2000);
             }
+        } else if (status.status === "aborted") {
+            btn.style.display = "block";
+            stopBtn.style.display = "none";
+            uploadBtn.style.display = "block";
+            display.style.display = "block";
+            badge.style.display = "none";
+            btn.textContent = "Start Training (15 Epochs)";
+            btn.style.background = "#8b5cf6";
+            
+            document.getElementById("vdTrainStatusText").textContent = "Training Stopped";
+            document.getElementById("vdTrainStatusText").style.color = "#ef4444";
+            document.getElementById("vdTrainProgressBar").style.background = "#ef4444";
+            document.getElementById("vdTrainStatusDetail").textContent = status.message || "Stopped by user";
+            if (window.trainingPollInterval) clearInterval(window.trainingPollInterval);
         } else if (status.status === "error") {
             btn.style.display = "block";
-            display.style.display = "none";
+            stopBtn.style.display = "none";
+            uploadBtn.style.display = "block";
+            display.style.display = "block"; // Show error message in progress bar area
             badge.style.display = "none";
             btn.textContent = "Retry Training (Failed)";
             btn.style.background = "#ef4444";
+            
+            document.getElementById("vdTrainStatusText").textContent = "Training Failed";
+            document.getElementById("vdTrainStatusText").style.color = "#ef4444";
+            document.getElementById("vdTrainProgressBar").style.background = "#ef4444";
+            document.getElementById("vdTrainStatusDetail").textContent = status.message || "Unknown error";
             if (window.trainingPollInterval) clearInterval(window.trainingPollInterval);
+        } else {
+            btn.style.display = "block";
+            stopBtn.style.display = "none";
+            uploadBtn.style.display = "block";
         }
     } catch (e) {
         console.error("Failed to poll training status", e);
@@ -667,24 +699,83 @@ async function pollTrainingStatus(voiceId) {
 }
 
 document.getElementById("vdStartTrainingBtn").addEventListener("click", async () => {
-    if (!activeVoiceDetails) return;
+    const currentVoice = (typeof activeStudioVoice !== 'undefined' && activeStudioVoice) ? activeStudioVoice : activeVoiceDetails;
+    if (!currentVoice) return;
     
     document.getElementById("vdStartTrainingBtn").disabled = true;
     document.getElementById("vdStartTrainingBtn").textContent = "Starting...";
     
     try {
-        await fetch(`http://127.0.0.1:8000/v1/voices/${activeVoiceDetails.id}/train`, {
+        await fetch(`http://127.0.0.1:8000/v1/voices/${currentVoice.id}/train`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ epochs: 15, batch_size: 2 })
         });
         // Begin polling
-        pollTrainingStatus(activeVoiceDetails.id);
+        pollTrainingStatus(currentVoice.id);
     } catch (e) {
         alert("Failed to start training: " + e.message);
         document.getElementById("vdStartTrainingBtn").disabled = false;
         document.getElementById("vdStartTrainingBtn").textContent = "Start Training (15 Epochs)";
     }
+});
+
+// Stop Training Button
+document.getElementById("vdStopTrainingBtn").addEventListener("click", async () => {
+    const currentVoice = (typeof activeStudioVoice !== 'undefined' && activeStudioVoice) ? activeStudioVoice : activeVoiceDetails;
+    if (!currentVoice) return;
+    
+    document.getElementById("vdStopTrainingBtn").disabled = true;
+    document.getElementById("vdStopTrainingBtn").textContent = "Stopping...";
+    
+    try {
+        await fetch(`http://127.0.0.1:8000/v1/voices/${currentVoice.id}/train/cancel`, { method: "POST" });
+    } catch (e) {
+        alert("Failed to stop training: " + e.message);
+        document.getElementById("vdStopTrainingBtn").disabled = false;
+        document.getElementById("vdStopTrainingBtn").textContent = "🛑 Stop Training";
+    }
+});
+
+// Upload Audio Button
+document.getElementById("vdUploadAudioBtn").addEventListener("click", () => {
+    document.getElementById("vdUploadAudioInput").click();
+});
+
+document.getElementById("vdUploadAudioInput").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const currentVoice = (typeof activeStudioVoice !== 'undefined' && activeStudioVoice) ? activeStudioVoice : activeVoiceDetails;
+    if (!currentVoice) return;
+    
+    const btn = document.getElementById("vdUploadAudioBtn");
+    btn.disabled = true;
+    btn.textContent = "Uploading...";
+    
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    try {
+        const response = await fetch(`http://127.0.0.1:8000/v1/voices/${currentVoice.id}/train/upload`, {
+            method: "POST",
+            body: formData
+        });
+        
+        if (!response.ok) throw new Error("Upload failed");
+        
+        btn.textContent = "✅ Uploaded!";
+        setTimeout(() => {
+            btn.disabled = false;
+            btn.textContent = "Upload Custom Audio";
+        }, 3000);
+    } catch (err) {
+        alert("Failed to upload audio: " + err.message);
+        btn.disabled = false;
+        btn.textContent = "Upload Custom Audio";
+    }
+    
+    e.target.value = ""; // Reset input
 });
 
 function closeVoiceDetails() {
