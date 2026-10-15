@@ -20,6 +20,16 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BASE_DIR not in sys.path:
     sys.path.append(BASE_DIR)
 
+# Ensure bundled FFmpeg is on PATH before any audio library imports
+import glob as _glob
+_ffmpeg_dirs = _glob.glob(os.path.join(BASE_DIR, "ffmpeg-*-shared", "bin"))
+if _ffmpeg_dirs:
+    os.environ["PATH"] = _ffmpeg_dirs[0] + os.pathsep + os.environ.get("PATH", "")
+    try:
+        os.add_dll_directory(_ffmpeg_dirs[0])
+    except AttributeError:
+        pass
+
 from parser import parse_chapter
 from audio import merge_audio_files
 from backend.engines import engine_manager
@@ -51,6 +61,9 @@ tts_lock = asyncio.Lock()
 # Serve the web studio at root
 os.makedirs(os.path.join(BASE_DIR, "frontend"), exist_ok=True)
 os.makedirs(os.path.join(BASE_DIR, "voices"), exist_ok=True)
+os.makedirs(os.path.join(BASE_DIR, "output", "single"), exist_ok=True)
+os.makedirs(os.path.join(BASE_DIR, "output", "chapters"), exist_ok=True)
+os.makedirs(os.path.join(BASE_DIR, "output", "temp"), exist_ok=True)
 app.mount("/studio", StaticFiles(directory=os.path.join(BASE_DIR, "frontend"), html=True), name="frontend")
 app.mount("/output", StaticFiles(directory=os.path.join(BASE_DIR, "output")), name="output")
 app.mount("/voices", StaticFiles(directory=os.path.join(BASE_DIR, "voices")), name="voices")
@@ -925,42 +938,42 @@ async def generate_speech(request: SpeechRequest, db: Session = Depends(get_db))
         async with tts_lock:
             # Use new TextPipeline
             target_lang = voice.language.split("-")[0] if voice.language else "hi"
-        chunks = text_pipeline.process_chapter(request.input, target_lang)
+            chunks = text_pipeline.process_chapter(request.input, target_lang)
         
-        if len(chunks) <= 1:
-            raw_output = output_path.replace(".mp3", "_raw.wav")
-            engine_manager.generate(
-                text=chunks[0] if chunks else request.input, 
-                voice_id=base_voice_id, 
-                language=target_lang, 
-                output_path=raw_output,
-                override_settings=final_settings
-            )
-            merged_path = raw_output
-        else:
-            temp_files = []
-            session_id = str(uuid.uuid4())[:8]
-            os.makedirs(os.path.join(BASE_DIR, "output", "temp"), exist_ok=True)
-            for i, chunk_text in enumerate(chunks):
-                chunk_path = os.path.join(BASE_DIR, "output", "temp", f"{session_id}_{i:03d}_{base_voice_id}_raw.wav")
+            if len(chunks) <= 1:
+                raw_output = output_path.replace(".mp3", "_raw.wav")
                 engine_manager.generate(
-                    text=chunk_text,
-                    voice_id=base_voice_id,
-                    language=target_lang,
-                    output_path=chunk_path,
+                    text=chunks[0] if chunks else request.input, 
+                    voice_id=base_voice_id, 
+                    language=target_lang, 
+                    output_path=raw_output,
                     override_settings=final_settings
                 )
-                temp_files.append(chunk_path)
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
-                    gc.collect()
-            
-            merged_path = os.path.join(BASE_DIR, "output", "temp", f"{session_id}_merged.wav")
-            merged_path = merge_audio_files(temp_files, merged_path)
-            for f in temp_files:
-                if os.path.exists(f):
-                    try: os.remove(f)
-                    except: pass
+                merged_path = raw_output
+            else:
+                temp_files = []
+                session_id = str(uuid.uuid4())[:8]
+                os.makedirs(os.path.join(BASE_DIR, "output", "temp"), exist_ok=True)
+                for i, chunk_text in enumerate(chunks):
+                    chunk_path = os.path.join(BASE_DIR, "output", "temp", f"{session_id}_{i:03d}_{base_voice_id}_raw.wav")
+                    engine_manager.generate(
+                        text=chunk_text,
+                        voice_id=base_voice_id,
+                        language=target_lang,
+                        output_path=chunk_path,
+                        override_settings=final_settings
+                    )
+                    temp_files.append(chunk_path)
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                        gc.collect()
+                
+                merged_path = os.path.join(BASE_DIR, "output", "temp", f"{session_id}_merged.wav")
+                merged_path = merge_audio_files(temp_files, merged_path)
+                for f in temp_files:
+                    if os.path.exists(f):
+                        try: os.remove(f)
+                        except: pass
         
         # Audio Quality Check
         quality = quality_checker.analyze_quality(merged_path)
@@ -987,7 +1000,7 @@ async def generate_speech(request: SpeechRequest, db: Session = Depends(get_db))
         # Save to DB history
         history_item = GeneratedAudio(
             id=audio_id,
-            voice_id=request.voice,
+            voice_id=base_voice_id,
             version_id=getattr(request, "version_id", None),
             text_hash=request.input[:100],
             settings_hash=settings_hash,
@@ -1047,33 +1060,6 @@ def get_chapter_audio(filename: str):
 def generate_chapter(request: ChapterRequest):
     # Simplification for brevity, logic remains similar
     return {"status": "success", "message": "Chapter generation API endpoint"}
-
-# ---- PRONUNCIATION DICTIONARY ENDPOINTS ----
-
-class PronunciationRequest(BaseModel):
-    original: str
-    say_as: str
-    language: str = "all"
-
-@app.get("/v1/pronunciations")
-def get_pronunciations(db: Session = Depends(get_db)):
-    items = db.query(PronunciationDictionary).all()
-    return {"pronunciations": [{"id": i.id, "original": i.original_word, "say_as": i.replacement_word, "language": i.language} for i in items]}
-
-@app.post("/v1/pronunciations")
-def add_pronunciation(request: PronunciationRequest, db: Session = Depends(get_db)):
-    item = PronunciationDictionary(id=uuid.uuid4().hex, original_word=request.original, replacement_word=request.say_as, language=request.language)
-    db.add(item)
-    db.commit()
-    return {"status": "success", "id": item.id}
-
-@app.delete("/v1/pronunciations/{item_id}")
-def delete_pronunciation(item_id: str, db: Session = Depends(get_db)):
-    item = db.query(PronunciationDictionary).filter(PronunciationDictionary.id == item_id).first()
-    if item:
-        db.delete(item)
-        db.commit()
-    return {"status": "deleted"}
 
 if __name__ == "__main__":
     import uvicorn

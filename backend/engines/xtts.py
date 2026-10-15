@@ -86,10 +86,14 @@ class XTTSLocalEngine(TTSEngine):
 
     def _has_finetuned_model(self, speaker: str) -> bool:
         """Check if a fine-tuned model checkpoint exists for this voice."""
+        if not speaker:
+            return False
         model_path = os.path.join(BASE_DIR, "voices", speaker, "model", "best_model.pth")
         return os.path.exists(model_path)
 
     def _get_finetuned_model_path(self, speaker: str) -> str:
+        if not speaker:
+            return ""
         return os.path.join(BASE_DIR, "voices", speaker, "model")
 
     def _generate_with_finetuned(
@@ -147,9 +151,7 @@ class XTTSLocalEngine(TTSEngine):
         safe_text = text[:40].encode("ascii", "replace").decode("ascii")
         print(f"[XTTS] Generating: {safe_text}...")
 
-        speaker = voice_profile.get("engine_voice_id")
-        if not speaker:
-            speaker = "narrator"
+        speaker = voice_profile.get("engine_voice_id") or voice_profile.get("id") or "narrator"
 
         # --- Check for fine-tuned model first (PREMIUM path) ---
         if self._has_finetuned_model(speaker):
