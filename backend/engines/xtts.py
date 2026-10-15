@@ -147,7 +147,9 @@ class XTTSLocalEngine(TTSEngine):
         safe_text = text[:40].encode("ascii", "replace").decode("ascii")
         print(f"[XTTS] Generating: {safe_text}...")
 
-        speaker = voice_profile.get("engine_voice_id", "narrator")
+        speaker = voice_profile.get("engine_voice_id")
+        if not speaker:
+            speaker = "narrator"
 
         # --- Check for fine-tuned model first (PREMIUM path) ---
         if self._has_finetuned_model(speaker):

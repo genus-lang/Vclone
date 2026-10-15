@@ -7,10 +7,19 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/studio/css/style.css" />
-  <link rel="stylesheet" href="/studio/css/voice-studio.css">
+  <link rel="stylesheet" href="/studio/css/style.css?v=2" />
+  <link rel="stylesheet" href="/studio/css/voice-studio.css?v=2">
 </head>
 <body>
+<script>
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+  alert("Error: " + msg + "\nLine: " + lineNo + "\nCol: " + columnNo);
+  return false;
+};
+window.addEventListener('unhandledrejection', function(event) {
+  alert("Promise Rejection: " + event.reason);
+});
+</script>
 
 <div class="app">
   <!-- SIDEBAR -->
@@ -986,9 +995,9 @@ fetch("http://127.0.0.1:8000/v1/audio/speech", {
 
 <!-- WaveSurfer.js CDN -->
 <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
-<script src="/studio/js/api.js"></script>
-<script src="/studio/js/app.js"></script>
-<script src="/studio/js/studio.js"></script>
+<script src="/studio/js/api.js?v=2"></script>
+<script src="/studio/js/app.js?v=2"></script>
+<script src="/studio/js/studio.js?v=2"></script>
 
 </body>
 </html>
